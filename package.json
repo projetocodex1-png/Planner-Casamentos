@@ -1,0 +1,9 @@
+{
+  "name": "planner-casamento",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Planner de casamento estatico para publicacao na Vercel.",
+  "scripts": {
+    "check": "node --check app.js"
+  }
+}

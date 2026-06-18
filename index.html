@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Planner Casamento</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:wght@400;600;700&family=Dancing+Script:wght@400;700&family=Great+Vibes&family=Libre+Baskerville:wght@400;700&family=Lora:wght@400;600;700&family=Montserrat:wght@400;600;700;800&family=Parisienne&family=Playfair+Display:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="authScreen" class="auth-screen">
+      <section class="auth-panel">
+        <div class="brand-lockup">
+          <div class="brand-mark">PC</div>
+          <div>
+            <p class="eyebrow">Planner Casamento</p>
+            <h1>Organize cada decisao do grande dia.</h1>
+          </div>
+        </div>
+        <div class="auth-tabs" role="tablist" aria-label="Acesso">
+          <button class="auth-tab active" data-auth-tab="login" type="button">Login</button>
+          <button class="auth-tab" data-auth-tab="signup" type="button">Cadastro</button>
+        </div>
+        <form id="authForm" class="form-grid">
+          <label data-signup-only>
+            Nome
+            <input name="name" autocomplete="name" placeholder="Seu nome" />
+          </label>
+          <label>
+            E-mail
+            <input name="email" type="email" autocomplete="email" required placeholder="voce@email.com" />
+          </label>
+          <label>
+            Senha
+            <input name="password" type="password" autocomplete="current-password" required placeholder="Minimo 6 caracteres" />
+          </label>
+          <button class="primary-action" type="submit">Entrar</button>
+          <button class="link-button" id="recoverButton" type="button">Recuperar senha</button>
+        </form>
+      </section>
+      <aside class="auth-art" aria-label="Resumo visual do planejamento">
+        <div class="timeline-strip">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="paper-stack">
+          <div class="paper paper-a"></div>
+          <div class="paper paper-b"></div>
+          <div class="paper paper-c"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div id="appShell" class="app-shell hidden">
+      <aside class="sidebar">
+        <div class="brand-row">
+          <div class="brand-mark">PC</div>
+          <div>
+            <strong>Planner</strong>
+            <span id="weddingName">Casamento</span>
+          </div>
+        </div>
+        <nav id="navList" class="nav-list" aria-label="Modulos"></nav>
+        <button id="logoutButton" class="secondary-action" type="button">Sair</button>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="screenEyebrow">Resumo</p>
+            <h2 id="screenTitle">Dashboard</h2>
+          </div>
+          <div class="topbar-actions">
+            <button id="settingsButton" class="secondary-action hidden" type="button">Editar dados</button>
+            <button id="exportButton" class="secondary-action" type="button">Exportar CSV</button>
+            <button id="newButton" class="primary-action" type="button">Adicionar</button>
+          </div>
+        </header>
+
+        <section id="dashboardView" class="view active"></section>
+        <section id="moduleView" class="view"></section>
+      </main>
+    </div>
+
+    <dialog id="onboardingDialog" class="dialog">
+      <form id="onboardingForm" method="dialog" class="dialog-body">
+        <header>
+          <p class="eyebrow" id="onboardingEyebrow">Configuracao inicial</p>
+          <h2 id="onboardingTitle">Dados do casamento</h2>
+        </header>
+        <div class="form-grid">
+          <label>
+            Composicao do casal
+            <select name="coupleType">
+              <option value="bride_groom">Noiva e Noivo</option>
+              <option value="bride_bride">Noiva e Noiva</option>
+              <option value="groom_groom">Noivo e Noivo</option>
+            </select>
+          </label>
+          <label>
+            <span data-partner-label="one">Nome da Noiva</span>
+            <input name="partnerOne" required placeholder="Regiana" />
+          </label>
+          <label>
+            <span data-partner-label="two">Nome do Noivo</span>
+            <input name="partnerTwo" required placeholder="Mauricio" />
+          </label>
+          <label>
+            Data
+            <input name="date" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" pattern="\d{2}/\d{2}/\d{4}" title="Use o formato dd/mm/aaaa" required />
+          </label>
+          <label>
+            Tipo
+            <select name="type">
+              <option>Classico</option>
+              <option>Praia</option>
+              <option>Campo</option>
+              <option>Urbano</option>
+              <option>Mini wedding</option>
+            </select>
+          </label>
+          <label>
+            Estilo
+            <select name="style">
+              <option>Elegante</option>
+              <option>Romantico</option>
+              <option>Minimalista</option>
+              <option>Boho</option>
+              <option>Moderno</option>
+            </select>
+          </label>
+          <label>
+            Orcamento planejado
+            <input name="budget" type="text" inputmode="numeric" value="R$ 65.000,00" placeholder="R$ 0,00" required />
+          </label>
+          <label>
+            Numero de convidados
+            <input name="guestTarget" type="number" min="1" step="1" value="120" />
+          </label>
+        </div>
+        <footer class="dialog-actions">
+          <button class="primary-action" id="onboardingSubmitButton" type="submit">Criar planejamento</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="itemDialog" class="dialog">
+      <form id="itemForm" method="dialog" class="dialog-body">
+        <header>
+          <p class="eyebrow" id="itemDialogEyebrow">Novo item</p>
+          <h2 id="itemDialogTitle">Adicionar</h2>
+        </header>
+        <div id="itemFields" class="form-grid"></div>
+        <footer class="dialog-actions">
+          <button class="secondary-action" type="button" data-close-dialog>Cancelar</button>
+          <button class="primary-action" type="submit">Salvar</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
