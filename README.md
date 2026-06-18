@@ -14,7 +14,11 @@ Este projeto esta preparado para publicacao como site estatico na Vercel.
 2. Na Vercel, importe o repositorio.
 3. Use as configuracoes padrao de projeto estatico, sem comando de build.
 
-Para Supabase, copie `supabase.example.js` para `supabase.js` e preencha a URL e a anon key do projeto quando a persistencia online for implementada. O arquivo `supabase.js` fica fora do Git por seguranca operacional.
+O app usa Supabase Auth e sincroniza o estado do planner na tabela `planner_states`.
+
+Para ativar o banco em um projeto novo do Supabase, rode no SQL Editor o arquivo:
+
+`supabase/migrations/20260618000000_create_planner_states.sql`
 
 ## Modulos incluidos
 

@@ -1,4 +1,8 @@
 const STORAGE_KEY = "planner-casamento-state-v1";
+const SUPABASE_CONFIG = window.PLANNER_SUPABASE_CONFIG || {};
+const supabaseClient = window.supabase && SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey
+  ? window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+  : null;
 
 const DEFAULT_GUEST_GROUPS = [
   "Familia do noivo",
@@ -255,6 +259,8 @@ let authMode = "login";
 let editing = null;
 let guestDragScrollFrame = null;
 let guestDragScrollY = 0;
+let cloudSaveTimer = null;
+let isApplyingCloudState = false;
 
 const els = {
   authScreen: document.querySelector("#authScreen"),
@@ -278,9 +284,10 @@ const els = {
 
 init();
 
-function init() {
+async function init() {
   wireAuth();
   wireShell();
+  await restoreCloudSession();
   render();
 }
 
@@ -296,20 +303,49 @@ function wireAuth() {
 
   document.querySelectorAll("[data-signup-only]").forEach((field) => field.classList.add("hidden"));
 
-  els.authForm.addEventListener("submit", (event) => {
+  els.authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(els.authForm);
-    state.user = {
-      name: form.get("name") || "Usuario",
-      email: form.get("email")
-    };
-    saveState();
-    render();
-    if (!state.wedding) openWeddingDialog("create");
+    const name = String(form.get("name") || "").trim() || "Usuario";
+    const email = String(form.get("email") || "").trim();
+    const password = String(form.get("password") || "");
+    try {
+      if (supabaseClient) {
+        if (authMode === "signup") await signUpWithSupabase(name, email, password);
+        else await signInWithSupabase(email, password);
+      } else {
+        state.user = { name, email };
+        saveState();
+      }
+      render();
+      if (!state.wedding && state.user) openWeddingDialog("create");
+    } catch (error) {
+      alert(error.message || "Nao foi possivel acessar sua conta.");
+    }
   });
 
-  document.querySelector("#recoverButton").addEventListener("click", () => {
+  document.querySelector("#recoverButton").addEventListener("click", async () => {
+    const email = String(els.authForm.elements.email.value || "").trim();
+    if (!email) {
+      alert("Informe seu e-mail para recuperar a senha.");
+      return;
+    }
+    if (supabaseClient) {
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+      if (error) {
+        alert(error.message);
+        return;
+      }
+    }
     alert("Enviamos as instrucoes de recuperacao para o e-mail informado.");
+  });
+
+  supabaseClient?.auth.onAuthStateChange((_event, session) => {
+    if (!session?.user && state.user?.id) {
+      state.user = null;
+      saveState();
+      render();
+    }
   });
 
   const weddingDateInput = els.onboardingForm.elements.date;
@@ -366,8 +402,90 @@ function wireAuth() {
   });
 }
 
+async function signUpWithSupabase(name, email, password) {
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: name }
+    }
+  });
+  if (error) throw error;
+  if (!data.session) {
+    alert("Cadastro criado. Confira seu e-mail para confirmar a conta antes de entrar.");
+    return;
+  }
+  await applySupabaseUser(data.session.user);
+}
+
+async function signInWithSupabase(email, password) {
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  await applySupabaseUser(data.user);
+}
+
+async function restoreCloudSession() {
+  if (!supabaseClient) return;
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error || !data.session?.user) return;
+  await applySupabaseUser(data.session.user);
+}
+
+async function applySupabaseUser(user) {
+  const cloudUser = {
+    id: user.id,
+    name: user.user_metadata?.full_name || user.email || "Usuario",
+    email: user.email
+  };
+  state.user = cloudUser;
+  await loadCloudState(cloudUser);
+}
+
+async function loadCloudState(user) {
+  if (!supabaseClient || !user?.id) return;
+  const { data, error } = await supabaseClient
+    .from("planner_states")
+    .select("state")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) {
+    console.warn("Nao foi possivel carregar dados do Supabase.", error);
+    saveState();
+    return;
+  }
+  if (data?.state) {
+    isApplyingCloudState = true;
+    state = normalizeState({
+      ...structuredClone(seedState),
+      ...data.state,
+      user
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    isApplyingCloudState = false;
+    return;
+  }
+  saveState();
+}
+
+function queueCloudSave() {
+  if (!supabaseClient || isApplyingCloudState || !state.user?.id) return;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(saveCloudState, 500);
+}
+
+async function saveCloudState() {
+  if (!supabaseClient || !state.user?.id) return;
+  const { error } = await supabaseClient.from("planner_states").upsert({
+    user_id: state.user.id,
+    state,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "user_id" });
+  if (error) console.warn("Nao foi possivel salvar dados no Supabase.", error);
+}
+
 function wireShell() {
-  document.querySelector("#logoutButton").addEventListener("click", () => {
+  document.querySelector("#logoutButton").addEventListener("click", async () => {
+    if (supabaseClient) await supabaseClient.auth.signOut();
     state.user = null;
     saveState();
     render();
@@ -1878,6 +1996,7 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  queueCloudSave();
 }
 
 function defaultChecklistTasks() {
