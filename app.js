@@ -206,51 +206,14 @@ const seedState = {
   },
   data: {
     checklist: defaultChecklistTasks(),
-    budget: [
-      { id: uid(), category: "Local", share: 19, planned: 20000, actual: 15000, status: "Contratado", notes: "" },
-      { id: uid(), category: "Cerimonial / Assessoria", share: 6, planned: 6400, actual: 5000, status: "Contratado", notes: "" },
-      { id: uid(), category: "Fotografo", share: 5, planned: 5600, actual: 4000, status: "Contratado", notes: "" },
-      { id: uid(), category: "Video / Filmagem", share: 4, planned: 4800, actual: 3500, status: "Planejado", notes: "" },
-      { id: uid(), category: "Convite e papelaria", share: 2, planned: 2400, actual: 0, status: "Planejado", notes: "" },
-      { id: uid(), category: "Identidade visual", share: 1, planned: 1600, actual: 0, status: "Planejado", notes: "" }
-    ],
-    guests: [
-      { id: uid(), name: "Maria Souza", group: "Familia da noiva", role: "Mae da noiva", rsvp: "Confirmado", table: "Mesa 1", phone: "", notes: "" },
-      { id: uid(), name: "Joao Lima", group: "Amigo do noivo", role: "Padrinho", rsvp: "Confirmado", table: "Mesa 2", phone: "", notes: "" },
-      { id: uid(), name: "Carla Nunes", group: "Amigos em comum", role: "Convidado comum", rsvp: "Aguardando", table: "", phone: "", notes: "" },
-      { id: uid(), name: "Pedro Alves", group: "Trabalho noiva", role: "Convidado comum", rsvp: "Pendente", table: "", phone: "", notes: "" }
-    ],
-    tables: [
-      { id: uid(), name: "Mesa 1", capacity: 8, area: "Familia", notes: "" },
-      { id: uid(), name: "Mesa 2", capacity: 10, area: "Padrinhos", notes: "" },
-      { id: uid(), name: "Mesa 3", capacity: 8, area: "Amigos", notes: "" }
-    ],
-    music: [
-      { id: uid(), song: "Canon in D", artist: "Pachelbel", moment: "Entrada", status: "Aprovada", notes: "" },
-      { id: uid(), song: "A Thousand Years", artist: "Christina Perri", moment: "Cerimonia", status: "Sugestao", notes: "" },
-      { id: uid(), song: "Treasure", artist: "Bruno Mars", moment: "Festa", status: "Enviar para DJ", notes: "" }
-    ],
-    identity: [
-      { id: uid(), section: "Tipografia", name: "Fonte dos titulos", typographyUse: "Convite casamento", fontRole: "Titulos", fontStyle: "Serifada", fontName: "Playfair Display", group: "", usage: "", colorName: "", colorHex: "", color: "#ffffff", status: "Escolhido", notes: "Chique e romantica." },
-      { id: uid(), section: "Tipografia", name: "Fonte dos textos", typographyUse: "Convite geral", fontRole: "Textos", fontStyle: "Sem serifa", fontName: "Montserrat", group: "", usage: "", colorName: "", colorHex: "", color: "#ffffff", status: "Escolhido", notes: "Limpa e moderna." },
-      { id: uid(), section: "Paleta de cores", name: "Azul profundo", typographyUse: "", fontRole: "", fontStyle: "", fontName: "", group: "Decoracao", usage: "Identidade visual", colorName: "Azul profundo", colorHex: "#1F3A5F", color: "#1F3A5F", status: "Escolhido", notes: "" },
-      { id: uid(), section: "Paleta de cores", name: "Rosa claro", typographyUse: "", fontRole: "", fontStyle: "", fontName: "", group: "Decoracao", usage: "Flores e papelaria", colorName: "Rosa claro", colorHex: "#EFBBCF", color: "#EFBBCF", status: "Escolhido", notes: "" },
-      { id: uid(), section: "Paleta de cores", name: "Camisa dos padrinhos", typographyUse: "", fontRole: "", fontStyle: "", fontName: "", group: "Padrinhos", usage: "Camisa", colorName: "Off-white", colorHex: "#FAF9F6", color: "#FAF9F6", status: "Ideia", notes: "" }
-    ],
-    vendors: [
-      { id: uid(), name: "Casa Jardim", category: "Local", contact: "(85) 99999-0000", value: 18000, status: "Contratado", contract: "Assinado", notes: "" },
-      { id: uid(), name: "Luz Foto", category: "Fotografia", contact: "contato@luzfoto.com", value: 7000, status: "Contratado", contract: "Recebido", notes: "" },
-      { id: uid(), name: "Atelie Flor", category: "Decoracao", contact: "", value: 13500, status: "Favorito", contract: "Sem contrato", notes: "" }
-    ],
-    payments: [
-      { id: uid(), description: "Sinal do local", vendor: "Casa Jardim", amount: 4000, dueDate: todayPlus(7), status: "Pendente", notes: "" },
-      { id: uid(), description: "Parcela fotografia", vendor: "Luz Foto", amount: 1500, dueDate: todayPlus(21), status: "Pendente", notes: "" },
-      { id: uid(), description: "Vestido", vendor: "Atelie", amount: 5200, dueDate: todayPlus(-4), status: "Pago", notes: "" }
-    ],
-    appointments: [
-      { id: uid(), title: "Degustacao do buffet", date: todayPlus(12), time: "18:00", vendor: "Buffet", reminder: "3 dias antes", notes: "" },
-      { id: uid(), title: "Visita tecnica ao local", date: todayPlus(24), time: "09:30", vendor: "Casa Jardim", reminder: "1 semana antes", notes: "" }
-    ]
+    budget: [],
+    guests: [],
+    tables: [],
+    music: [],
+    identity: [],
+    vendors: [],
+    payments: [],
+    appointments: []
   }
 };
 
@@ -466,6 +429,13 @@ async function loadCloudState(user) {
     isApplyingCloudState = false;
     return;
   }
+  isApplyingCloudState = true;
+  state = normalizeState({
+    ...structuredClone(seedState),
+    user
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  isApplyingCloudState = false;
   saveState();
 }
 

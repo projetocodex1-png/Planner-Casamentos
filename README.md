@@ -31,6 +31,7 @@ Em Authentication > URL Configuration, configure:
 - Onboarding com composicao do casal, nomes separados, data, estilo, tipo, orcamento e meta de convidados
 - Dashboard com contagem regressiva, progresso A.R.O., orcamento, convidados e pagamentos
 - Checklist em quadro por periodo, com tarefas padrao pendentes, prioridade, edicao livre e conclusao pela bolinha
+- Novas contas iniciam com os modulos preenchiveis zerados; somente o checklist vem com tarefas padrao
 - Orcamento em cartoes com percentual base, valores sugeridos e reais
 - Convidados com RSVP, grupos e papeis reutilizaveis, importacao CSV, filtros e organizacao por grupo, papel ou status
 - Importacao de convidados por cabecalhos flexiveis, aceitando CSV com virgula, ponto e virgula ou tab
