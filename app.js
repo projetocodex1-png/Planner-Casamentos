@@ -27,6 +27,33 @@ const DEFAULT_GUEST_ROLES = [
   "Convidado comum"
 ];
 
+const DEFAULT_BUDGET_CATEGORIES = [
+  ["Local", 19],
+  ["Cerimonial / Assessoria", 6],
+  ["Fotografo", 5],
+  ["Video / Filmagem", 4],
+  ["Convite e papelaria", 2],
+  ["Identidade visual", 1],
+  ["DJ / Musicos", 4],
+  ["Lembrancinha", 2],
+  ["Decoracao", 5],
+  ["Vestido de noiva", 6],
+  ["Traje do noivo", 3],
+  ["Empresa de transporte", 2],
+  ["Gastronomia / Buffet", 10],
+  ["Locacao de moveis", 3],
+  ["Recreacionista / Espaco Kids", 1],
+  ["Bar de drinks", 3],
+  ["Maquiagem e cabelo", 2],
+  ["Mesa de doces", 3],
+  ["Bolo", 1],
+  ["Celebrante", 1],
+  ["Igreja", 1],
+  ["Cabine de fotos", 2],
+  ["Seguranca / Manobrista", 2],
+  ["Bem-casados", 1]
+];
+
 const moduleConfig = {
   checklist: {
     title: "Checklist",
@@ -188,6 +215,7 @@ const seedState = {
   wedding: null,
   currentView: "dashboard",
   checklistDefaultsVersion: 3,
+  budgetDefaultsVersion: 1,
   filters: {},
   tableSort: {},
   identityColorGroups: ["Decoracao", "Noiva", "Noivo", "Pais", "Madrinhas", "Padrinhos"],
@@ -360,6 +388,8 @@ function wireAuth() {
       budget,
       guestTarget: Number(form.get("guestTarget")) || 0
     };
+    initializeBudgetDefaults();
+    syncBudgetSuggestions();
     saveState();
     els.onboardingDialog.close();
     render();
@@ -757,6 +787,7 @@ function renderModule(key) {
   els.moduleView.querySelectorAll("[data-add-identity-font]").forEach((button) => button.addEventListener("click", () => openIdentityFontDialog()));
   els.moduleView.querySelectorAll("[data-add-identity-group]").forEach((button) => button.addEventListener("click", () => openIdentityGroupDialog()));
   els.moduleView.querySelectorAll("[data-add-identity-color]").forEach((button) => button.addEventListener("click", () => openIdentityColorDialog(button.dataset.addIdentityColor)));
+  if (key === "budget") wireBudgetInputs();
   if (key === "tables") wireTablePlanner();
 
   const importButton = els.moduleView.querySelector("[data-import-guests]");
@@ -866,16 +897,20 @@ function renderChecklistBoard(items) {
 }
 
 function renderBudgetCards(items) {
-  const planned = sum(items, "planned");
+  const planned = Number(state.wedding?.budget) || sum(items, "planned");
   const actual = sum(items, "actual");
-  const used = planned ? Math.min(100, Math.round((actual / planned) * 100)) : 0;
+  const paid = paidPaymentsTotal();
+  const available = planned - actual;
+  const used = planned ? Math.min(100, Math.round((paid / planned) * 100)) : 0;
   if (!items.length) return emptyPanel();
   return `
     <div class="budget-summary">
-      ${metric("Total planejado", money(planned), "Soma das categorias visiveis")}
-      ${metric("Total pago/real", money(actual), `${used}% utilizado`)}
-      <article class="metric-card wide">
-        <span>Orcamento utilizado</span>
+      ${metric("Orcamento previsto", money(planned), "Valor informado pelo casal")}
+      ${metric("Orcamento real", money(actual), "Soma dos valores reais")}
+      ${metric("Disponivel", money(available), "Previsto menos orcamento real")}
+      ${metric("Total pago", money(paid), "Pagamentos marcados como Pago")}
+      <article class="metric-card wide budget-progress-card">
+        <span>Orcamento utilizado pelos pagamentos</span>
         <strong>${used}%</strong>
         <div class="progress-rail"><div class="progress-bar" style="width:${used}%"></div></div>
       </article>
@@ -890,7 +925,7 @@ function renderBudgetCards(items) {
           <p>${Number(item.share) || 0}% base - ${money(item.planned)} sugerido</p>
           <label>
             Real
-            <input value="${Number(item.actual) || 0}" readonly>
+            <input data-budget-actual="${item.id}" type="text" inputmode="numeric" value="${money(item.actual)}" placeholder="R$ 0,00">
           </label>
           <div class="item-actions">
             <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
@@ -900,6 +935,22 @@ function renderBudgetCards(items) {
       `).join("")}
     </div>
   `;
+}
+
+function wireBudgetInputs() {
+  els.moduleView.querySelectorAll("[data-budget-actual]").forEach((input) => {
+    input.addEventListener("focus", () => placeCurrencyCursor(input));
+    input.addEventListener("input", () => {
+      input.value = formatCurrencyInput(input.value);
+      placeCurrencyCursor(input);
+    });
+    input.addEventListener("change", () => {
+      const value = parseCurrencyInput(input.value);
+      state.data.budget = state.data.budget.map((item) => item.id === input.dataset.budgetActual ? { ...item, actual: value } : item);
+      saveState();
+      renderModule("budget");
+    });
+  });
 }
 
 function renderVendors(items) {
@@ -1987,6 +2038,43 @@ function saveState() {
   queueCloudSave();
 }
 
+function initializeBudgetDefaults() {
+  if (state.budgetDefaultsVersion === seedState.budgetDefaultsVersion && state.data.budget.length) return;
+  if (state.data.budget.length) {
+    state.budgetDefaultsVersion = seedState.budgetDefaultsVersion;
+    return;
+  }
+  state.data.budget = defaultBudgetItems(state.wedding?.budget);
+  state.budgetDefaultsVersion = seedState.budgetDefaultsVersion;
+}
+
+function defaultBudgetItems(totalBudget = 0) {
+  const budget = Number(totalBudget) || 0;
+  return DEFAULT_BUDGET_CATEGORIES.map(([category, share]) => ({
+    id: uid(),
+    category,
+    share,
+    planned: Math.round((budget * share) / 100),
+    actual: 0,
+    status: "Planejado",
+    notes: ""
+  }));
+}
+
+function syncBudgetSuggestions() {
+  const budget = Number(state.wedding?.budget) || 0;
+  state.data.budget = state.data.budget.map((item) => ({
+    ...item,
+    planned: Number(item.share) ? Math.round((budget * Number(item.share)) / 100) : Number(item.planned) || 0
+  }));
+}
+
+function paidPaymentsTotal() {
+  return state.data.payments
+    .filter((payment) => payment.status === "Pago")
+    .reduce((total, payment) => total + (Number(payment.amount) || 0), 0);
+}
+
 function defaultChecklistTasks() {
   const tasks = [
     ["12 meses", "Pesquisar fornecedores", "Fornecedores", "Alta"],
@@ -2250,14 +2338,22 @@ function normalizeState(nextState) {
     nextState.data.checklist = defaultChecklistTasks();
     nextState.checklistDefaultsVersion = seedState.checklistDefaultsVersion;
   }
+  if (nextState.wedding && (!nextState.budgetDefaultsVersion || !(nextState.data.budget || []).length)) {
+    nextState.data.budget = defaultBudgetItems(nextState.wedding.budget);
+    nextState.budgetDefaultsVersion = seedState.budgetDefaultsVersion;
+  }
   nextState.data.checklist = nextState.data.checklist.map((item) => ({
     ...item,
     priority: item.priority || "Media",
     status: item.status === "Concluido" ? "Concluido" : "Pendente"
   }));
   nextState.data.budget = nextState.data.budget.map((item) => ({
-    share: Math.round(((Number(item.planned) || 0) / Math.max(Number(nextState.wedding?.budget) || 1, 1)) * 100),
-    ...item
+    ...item,
+    share: Number(item.share) || 0,
+    planned: Number(item.share)
+      ? Math.round(((Number(nextState.wedding?.budget) || 0) * Number(item.share)) / 100)
+      : Number(item.planned) || 0,
+    actual: Number(item.actual) || 0
   }));
   return nextState;
 }
