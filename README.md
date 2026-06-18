@@ -20,6 +20,11 @@ Para ativar o banco em um projeto novo do Supabase, rode no SQL Editor o arquivo
 
 `supabase/migrations/20260618000000_create_planner_states.sql`
 
+Em Authentication > URL Configuration, configure:
+
+- Site URL: `https://planner-casamentos.vercel.app`
+- Redirect URLs: `https://planner-casamentos.vercel.app/**`
+
 ## Modulos incluidos
 
 - Login, cadastro e recuperacao de senha simulados

@@ -287,6 +287,7 @@ init();
 async function init() {
   wireAuth();
   wireShell();
+  handleAuthRedirectMessage();
   await restoreCloudSession();
   render();
 }
@@ -331,7 +332,7 @@ function wireAuth() {
       return;
     }
     if (supabaseClient) {
-      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: appRedirectUrl() });
       if (error) {
         alert(error.message);
         return;
@@ -407,6 +408,7 @@ async function signUpWithSupabase(name, email, password) {
     email,
     password,
     options: {
+      emailRedirectTo: appRedirectUrl(),
       data: { full_name: name }
     }
   });
@@ -481,6 +483,22 @@ async function saveCloudState() {
     updated_at: new Date().toISOString()
   }, { onConflict: "user_id" });
   if (error) console.warn("Nao foi possivel salvar dados no Supabase.", error);
+}
+
+function appRedirectUrl() {
+  if (window.location.protocol !== "file:" && window.location.origin && window.location.origin !== "null") {
+    return window.location.origin;
+  }
+  return "https://planner-casamentos.vercel.app";
+}
+
+function handleAuthRedirectMessage() {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const errorDescription = params.get("error_description");
+  if (errorDescription) {
+    alert(`Nao foi possivel confirmar o acesso: ${errorDescription.replaceAll("+", " ")}`);
+    history.replaceState(null, "", window.location.pathname || "/");
+  }
 }
 
 function wireShell() {
