@@ -96,6 +96,7 @@ const moduleConfig = {
       ["name", "Nome", "text", true],
       ["group", "Grupo", "select", true, DEFAULT_GUEST_GROUPS],
       ["role", "Papel", "select", true, DEFAULT_GUEST_ROLES],
+      ["guestType", "Tipo", "select", true, ["Adulto", "Crianca"]],
       ["rsvp", "RSVP", "select", true, ["Aguardando", "Confirmado", "Pendente", "Recusado"]],
       ["phone", "WhatsApp", "text", false],
       ["notes", "Observacoes", "textarea", false]
@@ -225,6 +226,7 @@ const seedState = {
   guestView: {
     groupBy: "none"
   },
+  guestExtraColumns: [],
   tablePlanner: {
     expandedTables: []
   },
@@ -546,6 +548,13 @@ function wireShell() {
       render();
       return;
     }
+    if (key === "guestColumn") {
+      saveGuestColumn(form);
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
     if (key === "identity") {
       saveIdentityItem(form);
       els.itemDialog.close();
@@ -754,6 +763,7 @@ function renderModule(key) {
       <input type="search" placeholder="Buscar" value="${escapeHtml(state.filters[key]?.query || "")}" data-filter-query>
       ${filters.map((field) => renderFilter(key, field)).join("")}
       ${key === "guests" ? renderGuestViewControls() : ""}
+      ${key === "guests" ? '<button class="secondary-action" type="button" data-add-guest-column>Adicionar coluna</button>' : ""}
       ${key === "guests" ? '<button class="secondary-action" type="button" data-import-guests>Importar CSV</button><input class="hidden" type="file" accept=".csv" data-import-file>' : ""}
       ${key === "vendors" ? renderVendorViewControls() : ""}
     </div>
@@ -783,6 +793,7 @@ function renderModule(key) {
       renderModule("guests");
     });
   });
+  els.moduleView.querySelector("[data-add-guest-column]")?.addEventListener("click", openGuestColumnDialog);
   els.moduleView.querySelectorAll("[data-payment-month]").forEach((button) => {
     button.addEventListener("click", () => {
       state.paymentCalendarMonth = addMonths(paymentCalendarMonth(), Number(button.dataset.paymentMonth));
@@ -1313,7 +1324,7 @@ function renderCards(key, items) {
 
 function renderTable(key, items) {
   if (!items.length) return emptyPanel();
-  const fields = moduleConfig[key].fields.map(([name]) => name).filter((name) => name !== "notes");
+  const fields = tableFields(key);
   const sortedItems = sortTableItems(key, items);
   const sort = state.tableSort?.[key] || {};
   return `
@@ -1329,7 +1340,7 @@ function renderTable(key, items) {
         `).join("")}<th>Acoes</th></tr></thead>
         <tbody>${sortedItems.map((item) => `
           <tr>
-            ${fields.map((field) => `<td>${formatValue(field, item[field])}</td>`).join("")}
+            ${fields.map((field) => `<td>${formatValue(field, tableCellValue(key, item, field))}</td>`).join("")}
             <td>
               <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
               <button class="icon-button danger" type="button" data-delete="${item.id}">Excluir</button>
@@ -1339,6 +1350,20 @@ function renderTable(key, items) {
       </table>
     </div>
   `;
+}
+
+function tableFields(key) {
+  const baseFields = moduleConfig[key].fields.map(([name]) => name).filter((name) => name !== "notes");
+  if (key !== "guests") return baseFields;
+  return [
+    ...baseFields,
+    ...(state.guestExtraColumns || []).map((column) => `extra:${column.id}`)
+  ];
+}
+
+function tableCellValue(key, item, field) {
+  if (key === "guests" && field.startsWith("extra:")) return item.extra?.[field.slice(6)] || "";
+  return item[field];
 }
 
 function wireTablePlanner() {
@@ -1656,15 +1681,66 @@ function renderGuestForm(item) {
       </select>
     </label>
     <label data-new-guest-role>Novo papel<input name="newRole" value="${escapeHtml(customRole)}" placeholder="Ex: Celebrante"></label>
+    <label>Tipo
+      <select name="guestType" required>
+        ${["Adulto", "Crianca"].map((option) => `<option ${((item.guestType || "Adulto") === option) ? "selected" : ""}>${option}</option>`).join("")}
+      </select>
+    </label>
     <label>RSVP
       <select name="rsvp" required>
         ${["Aguardando", "Confirmado", "Pendente", "Recusado"].map((option) => `<option ${item.rsvp === option ? "selected" : ""}>${option}</option>`).join("")}
       </select>
     </label>
     <label>WhatsApp<input name="phone" value="${escapeHtml(item.phone || "")}" placeholder="(00) 00000-0000"></label>
+    ${guestExtraFields(item)}
     <label class="full-field">Observacoes<textarea name="notes">${escapeHtml(item.notes || "")}</textarea></label>
   `;
   wireGuestForm();
+}
+
+function openGuestColumnDialog() {
+  editing = { key: "guestColumn", id: null };
+  document.querySelector("#itemDialogEyebrow").textContent = "Lista e RSVP";
+  document.querySelector("#itemDialogTitle").textContent = "Adicionar coluna";
+  els.itemFields.innerHTML = `
+    <label class="full-field">Nome da coluna<input name="columnLabel" required placeholder="Ex: Restricao alimentar"></label>
+  `;
+  els.itemDialog.showModal();
+}
+
+function saveGuestColumn(form) {
+  const label = String(form.get("columnLabel") || "").trim();
+  if (!label) return;
+  if ((state.guestExtraColumns || []).some((column) => normalizeHeader(column.label) === normalizeHeader(label))) return;
+  const id = uniqueGuestColumnId(label);
+  state.guestExtraColumns = [...(state.guestExtraColumns || []), { id, label }];
+  state.data.guests = state.data.guests.map((guest) => ({
+    ...guest,
+    extra: { ...(guest.extra || {}), [id]: "" }
+  }));
+  saveState();
+}
+
+function guestExtraFields(item) {
+  const columns = state.guestExtraColumns || [];
+  if (!columns.length) return "";
+  return columns.map((column) => `
+    <label>${escapeHtml(column.label)}
+      <input name="extra_${escapeHtml(column.id)}" value="${escapeHtml(item.extra?.[column.id] || "")}" placeholder="${escapeHtml(column.label)}">
+    </label>
+  `).join("");
+}
+
+function uniqueGuestColumnId(label) {
+  const base = slugify(label) || `coluna_${uid()}`;
+  const existing = new Set((state.guestExtraColumns || []).map((column) => column.id));
+  let id = base;
+  let count = 2;
+  while (existing.has(id)) {
+    id = `${base}_${count}`;
+    count += 1;
+  }
+  return id;
 }
 
 function wireGuestForm() {
@@ -1692,17 +1768,23 @@ function saveGuestItem(form) {
   addGuestOption("guestGroups", group);
   addGuestOption("guestRoles", role);
   const previous = editing.id ? state.data.guests.find((entry) => entry.id === editing.id) : {};
+  const extra = {};
+  (state.guestExtraColumns || []).forEach((column) => {
+    extra[column.id] = String(form.get(`extra_${column.id}`) || "").trim();
+  });
   const item = {
     id: editing.id || uid(),
     name: String(form.get("name") || "").trim(),
     group,
     role,
+    guestType: form.get("guestType") || "Adulto",
     rsvp: form.get("rsvp") || "Aguardando",
     table: previous?.table || "",
     tableId: previous?.tableId || "",
     looseX: previous?.looseX || "",
     looseY: previous?.looseY || "",
     phone: form.get("phone") || "",
+    extra,
     notes: form.get("notes") || ""
   };
   if (editing.id) state.data.guests = state.data.guests.map((entry) => entry.id === editing.id ? item : entry);
@@ -1942,7 +2024,7 @@ function sortTableItems(key, items) {
   const sort = state.tableSort?.[key];
   if (!sort?.field) return items;
   const direction = sort.direction === "desc" ? -1 : 1;
-  return [...items].sort((a, b) => compareTableValues(a[sort.field], b[sort.field]) * direction);
+  return [...items].sort((a, b) => compareTableValues(tableCellValue(key, a, sort.field), tableCellValue(key, b, sort.field)) * direction);
 }
 
 function compareTableValues(a, b) {
@@ -1963,8 +2045,9 @@ function normalizeSortValue(value) {
 
 function exportCsv(key) {
   const items = sortTableItems(key, filteredItems(key));
-  const fields = moduleConfig[key].fields.map(([name]) => name);
-  const rows = [fields, ...items.map((item) => fields.map((field) => item[field] ?? ""))];
+  const fields = exportFields(key);
+  const labels = fields.map(labelForField);
+  const rows = [labels, ...items.map((item) => fields.map((field) => tableCellValue(key, item, field) ?? ""))];
   const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -1973,6 +2056,15 @@ function exportCsv(key) {
   link.download = `${key}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function exportFields(key) {
+  const baseFields = moduleConfig[key].fields.map(([name]) => name);
+  if (key !== "guests") return baseFields;
+  return [
+    ...baseFields,
+    ...(state.guestExtraColumns || []).map((column) => `extra:${column.id}`)
+  ];
 }
 
 function importGuestsCsv(event) {
@@ -1996,9 +2088,11 @@ function importGuestsCsv(event) {
         name: row.name,
         group,
         role,
+        guestType: row.guestType || "Adulto",
         rsvp: normalizeGuestRsvp(row.rsvp),
         table: "",
         phone: row.phone || "",
+        extra: row.extra || {},
         notes: row.notes || ""
       };
     });
@@ -2069,12 +2163,18 @@ function countDelimiter(line, delimiter) {
 
 function readGuestImportRow(headers, cells) {
   const row = Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""]));
+  const extra = {};
+  (state.guestExtraColumns || []).forEach((column) => {
+    extra[column.id] = firstImportValue(row, [column.label, column.id]);
+  });
   return {
     name: firstImportValue(row, ["name", "nome", "convidado", "convidada", "nome completo", "guest"]),
     group: firstImportValue(row, ["group", "grupo", "familia", "origem", "categoria"]),
     role: firstImportValue(row, ["role", "papel", "funcao", "cargo", "participacao"]),
+    guestType: normalizeGuestType(firstImportValue(row, ["tipo", "tipo de convidado", "adulto crianca", "adulto criança", "idade", "guest type"])),
     rsvp: firstImportValue(row, ["rsvp", "presenca", "presente", "confirmacao", "status"]),
     phone: firstImportValue(row, ["phone", "telefone", "celular", "whatsapp", "zap", "contato"]),
+    extra,
     notes: firstImportValue(row, ["notes", "observacoes", "observacao", "obs", "notas", "comentarios"])
   };
 }
@@ -2094,6 +2194,10 @@ function normalizeHeader(value) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+}
+
+function slugify(value) {
+  return normalizeHeader(value).replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
 function loadState() {
@@ -2390,6 +2494,20 @@ function normalizeGuestRsvp(value) {
   return map[key] || "Aguardando";
 }
 
+function normalizeGuestType(value) {
+  const key = normalizeHeader(value);
+  if (["crianca", "criança", "infantil", "kids", "kid", "child"].includes(key)) return "Crianca";
+  return "Adulto";
+}
+
+function normalizeGuestExtra(extra = {}, columns = []) {
+  const normalized = {};
+  columns.forEach((column) => {
+    normalized[column.id] = String(extra?.[column.id] || "");
+  });
+  return normalized;
+}
+
 function findDefaultGuestOption(options, value) {
   const key = normalizeHeader(value);
   return options.find((option) => normalizeHeader(option) === key);
@@ -2419,12 +2537,15 @@ function normalizeState(nextState) {
     expandedTables: [],
     ...(nextState.tablePlanner || {})
   };
+  nextState.guestExtraColumns = Array.isArray(nextState.guestExtraColumns) ? nextState.guestExtraColumns : [];
   nextState.data.guests ||= structuredClone(seedState.data.guests);
   nextState.data.guests = nextState.data.guests.map((item) => ({
     ...item,
     group: normalizeGuestGroup(item.group),
     role: normalizeGuestRole(item.role),
+    guestType: normalizeGuestType(item.guestType),
     rsvp: item.rsvp || "Aguardando",
+    extra: normalizeGuestExtra(item.extra, nextState.guestExtraColumns),
     looseX: item.table || item.tableId ? "" : item.looseX || "",
     looseY: item.table || item.tableId ? "" : item.looseY || ""
   }));
@@ -2855,6 +2976,10 @@ function escapeHtml(value) {
 }
 
 function labelForField(field) {
+  if (field.startsWith("extra:")) {
+    const column = (state.guestExtraColumns || []).find((item) => item.id === field.slice(6));
+    return column?.label || "Informacao";
+  }
   const labels = {
     title: "Titulo",
     period: "Periodo",
@@ -2870,6 +2995,7 @@ function labelForField(field) {
     name: "Nome",
     group: "Grupo",
     role: "Papel",
+    guestType: "Tipo",
     rsvp: "RSVP",
     table: "Mesa",
     phone: "WhatsApp",
