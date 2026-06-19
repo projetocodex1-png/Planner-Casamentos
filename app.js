@@ -27,6 +27,7 @@ const DEFAULT_GUEST_ROLES = [
   "Convidado comum"
 ];
 
+const RSVP_STATUSES = ["A enviar convite", "Pendente", "Confirmado", "Não vai"];
 const DEFAULT_MUSIC_MOMENTS = ["Entrada", "Cerimonia", "Aliancas", "Cumprimentos", "Primeira danca", "Festa", "Encerramento"];
 const DEFAULT_CHECKLIST_CATEGORIES = [
   "Acessorios",
@@ -134,7 +135,7 @@ const moduleConfig = {
       ["group", "Grupo", "select", true, DEFAULT_GUEST_GROUPS],
       ["role", "Papel", "select", true, DEFAULT_GUEST_ROLES],
       ["guestType", "Tipo", "select", true, ["Adulto", "Crianca"]],
-      ["rsvp", "RSVP", "select", true, ["Aguardando", "Confirmado", "Pendente", "Recusado"]],
+      ["rsvp", "RSVP", "select", true, RSVP_STATUSES],
       ["phone", "WhatsApp", "text", false],
       ["notes", "Observacoes", "textarea", false]
     ],
@@ -1180,10 +1181,10 @@ function renderGuests(items) {
 function renderTablePlanner(tables) {
   const sortedTables = tables.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR", { numeric: true }));
   const unassignedGuests = state.data.guests
-    .filter((guest) => !guestAssignedTable(guest) && !guestLoosePosition(guest) && guest.rsvp !== "Recusado")
+    .filter((guest) => !guestAssignedTable(guest) && !guestLoosePosition(guest) && guest.rsvp !== "Não vai")
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR", { sensitivity: "base" }));
   const looseGuests = state.data.guests
-    .filter((guest) => !guestAssignedTable(guest) && guestLoosePosition(guest) && guest.rsvp !== "Recusado")
+    .filter((guest) => !guestAssignedTable(guest) && guestLoosePosition(guest) && guest.rsvp !== "Não vai")
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR", { sensitivity: "base" }));
   return `
     <section class="seating-planner">
@@ -1743,7 +1744,7 @@ function renderGuestForm(item) {
     </label>
     <label>RSVP
       <select name="rsvp" required>
-        ${["Aguardando", "Confirmado", "Pendente", "Recusado"].map((option) => `<option ${item.rsvp === option ? "selected" : ""}>${option}</option>`).join("")}
+        ${RSVP_STATUSES.map((option) => `<option ${normalizeGuestRsvp(item.rsvp) === option ? "selected" : ""}>${option}</option>`).join("")}
       </select>
     </label>
     <label>WhatsApp<input name="phone" value="${escapeHtml(item.phone || "")}" placeholder="(00) 00000-0000"></label>
@@ -1833,7 +1834,7 @@ function saveGuestItem(form) {
     group,
     role,
     guestType: form.get("guestType") || "Adulto",
-    rsvp: form.get("rsvp") || "Aguardando",
+    rsvp: normalizeGuestRsvp(form.get("rsvp")),
     table: previous?.table || "",
     tableId: previous?.tableId || "",
     looseX: previous?.looseX || "",
@@ -2588,19 +2589,24 @@ function normalizeGuestRole(value) {
 function normalizeGuestRsvp(value) {
   const key = normalizeHeader(value);
   const map = {
+    "a enviar convite": "A enviar convite",
+    enviar: "A enviar convite",
+    convite: "A enviar convite",
     sim: "Confirmado",
     confirmado: "Confirmado",
     confirmada: "Confirmado",
     presente: "Confirmado",
-    nao: "Recusado",
-    recusado: "Recusado",
-    recusada: "Recusado",
-    ausente: "Recusado",
+    nao: "Não vai",
+    "nao vai": "Não vai",
+    "não vai": "Não vai",
+    recusado: "Não vai",
+    recusada: "Não vai",
+    ausente: "Não vai",
     pendente: "Pendente",
-    aguardando: "Aguardando",
-    talvez: "Aguardando"
+    aguardando: "A enviar convite",
+    talvez: "Pendente"
   };
-  return map[key] || "Aguardando";
+  return map[key] || "A enviar convite";
 }
 
 function normalizeGuestType(value) {
@@ -2653,7 +2659,7 @@ function normalizeState(nextState) {
     group: normalizeGuestGroup(item.group),
     role: normalizeGuestRole(item.role),
     guestType: normalizeGuestType(item.guestType),
-    rsvp: item.rsvp || "Aguardando",
+    rsvp: normalizeGuestRsvp(item.rsvp),
     extra: normalizeGuestExtra(item.extra, nextState.guestExtraColumns),
     looseX: item.table || item.tableId ? "" : item.looseX || "",
     looseY: item.table || item.tableId ? "" : item.looseY || ""
@@ -3160,8 +3166,8 @@ function primaryStatus(item) {
 
 function chipColor(value) {
   if (["Concluido", "Confirmado", "Pago", "Contratado", "Assinado", "Aprovada"].includes(value)) return "teal";
-  if (["Estourou", "Atrasado", "Recusado"].includes(value)) return "rose";
-  if (["Pendente", "Aguardando", "Em andamento", "Media"].includes(value)) return "gold";
+  if (["Estourou", "Atrasado", "Não vai"].includes(value)) return "rose";
+  if (["Pendente", "A enviar convite", "Em andamento", "Media"].includes(value)) return "gold";
   if (["Alta", "Comprar"].includes(value)) return "rose";
   if (["Baixa", "Ideia"].includes(value)) return "sage";
   return "sage";
@@ -3179,7 +3185,7 @@ function tableLoad(table) {
 
 function guestsForTable(table) {
   return state.data.guests
-    .filter((guest) => guest.rsvp !== "Recusado" && (guest.tableId === table.id || (!guest.tableId && guest.table === table.name)))
+    .filter((guest) => guest.rsvp !== "Não vai" && (guest.tableId === table.id || (!guest.tableId && guest.table === table.name)))
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR", { sensitivity: "base" }));
 }
 
