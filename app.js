@@ -215,7 +215,7 @@ const seedState = {
   wedding: null,
   currentView: "dashboard",
   checklistDefaultsVersion: 3,
-  budgetDefaultsVersion: 1,
+  budgetDefaultsVersion: 2,
   filters: {},
   tableSort: {},
   identityColorGroups: ["Decoracao", "Noiva", "Noivo", "Pais", "Madrinhas", "Padrinhos"],
@@ -2039,12 +2039,7 @@ function saveState() {
 }
 
 function initializeBudgetDefaults() {
-  if (state.budgetDefaultsVersion === seedState.budgetDefaultsVersion && state.data.budget.length) return;
-  if (state.data.budget.length) {
-    state.budgetDefaultsVersion = seedState.budgetDefaultsVersion;
-    return;
-  }
-  state.data.budget = defaultBudgetItems(state.wedding?.budget);
+  state.data.budget = mergeDefaultBudgetItems(state.data.budget, state.wedding?.budget);
   state.budgetDefaultsVersion = seedState.budgetDefaultsVersion;
 }
 
@@ -2059,6 +2054,13 @@ function defaultBudgetItems(totalBudget = 0) {
     status: "Planejado",
     notes: ""
   }));
+}
+
+function mergeDefaultBudgetItems(items = [], totalBudget = 0) {
+  const currentItems = Array.isArray(items) ? items : [];
+  const seen = new Set(currentItems.map((item) => normalizeHeader(item.category)));
+  const missingDefaults = defaultBudgetItems(totalBudget).filter((item) => !seen.has(normalizeHeader(item.category)));
+  return [...currentItems, ...missingDefaults];
 }
 
 function syncBudgetSuggestions() {
@@ -2338,8 +2340,8 @@ function normalizeState(nextState) {
     nextState.data.checklist = defaultChecklistTasks();
     nextState.checklistDefaultsVersion = seedState.checklistDefaultsVersion;
   }
-  if (nextState.wedding && (!nextState.budgetDefaultsVersion || !(nextState.data.budget || []).length)) {
-    nextState.data.budget = defaultBudgetItems(nextState.wedding.budget);
+  if (nextState.wedding && nextState.budgetDefaultsVersion !== seedState.budgetDefaultsVersion) {
+    nextState.data.budget = mergeDefaultBudgetItems(nextState.data.budget, nextState.wedding.budget);
     nextState.budgetDefaultsVersion = seedState.budgetDefaultsVersion;
   }
   nextState.data.checklist = nextState.data.checklist.map((item) => ({
