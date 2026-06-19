@@ -575,7 +575,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .kanban-board {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -1277,6 +1277,7 @@ td:last-child { text-align: right; white-space: nowrap; }
 @media (max-width: 1080px) {
   .metric-grid, .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .budget-summary, .budget-card-grid, .font-card-grid, .color-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kanban-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-grid { grid-template-columns: 1fr; }
   .welcome-panel { grid-template-columns: 1fr; }
 }
@@ -1296,6 +1297,7 @@ td:last-child { text-align: right; white-space: nowrap; }
   .topbar-actions { width: 100%; justify-content: stretch; }
   .topbar-actions button { flex: 1 1 150px; }
   .metric-grid, .card-grid, .form-grid, .budget-summary, .budget-card-grid, .font-card-grid, .color-card-grid, .status-tabs { grid-template-columns: 1fr; }
+  .kanban-board { grid-template-columns: 1fr; }
   .payment-calendar-header { flex-direction: column; }
   .calendar-controls { width: 100%; justify-content: space-between; }
   .calendar-weekdays,
