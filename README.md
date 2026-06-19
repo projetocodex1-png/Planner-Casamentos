@@ -32,14 +32,14 @@ Em Authentication > URL Configuration, configure:
 - Dashboard com contagem regressiva, progresso A.R.O., orcamento, convidados e pagamentos
 - Checklist em quadro por periodo, com tarefas padrao pendentes, prioridade, edicao livre e conclusao pela bolinha
 - Novas contas iniciam com os modulos preenchiveis zerados; somente o checklist vem com tarefas padrao
-- Orcamento em cartoes com categorias padrao geradas pelo valor inicial do casal, valor real em moeda e pagamentos pagos consumindo o percentual utilizado
+- Orcamento em cartoes com categorias padrao dos exemplos, valores sugeridos escalados pelo valor inicial do casal, valor real em moeda e pagamentos pagos consumindo o percentual utilizado
 - Convidados com RSVP, grupos e papeis reutilizaveis, importacao CSV, filtros e organizacao por grupo, papel ou status
 - Importacao de convidados por cabecalhos flexiveis, aceitando CSV com virgula, ponto e virgula ou tab
 - Mesas com mapa visual, arraste de convidados com rolagem automatica, selecao de mesa por clique, nomes soltos no mapa, grupo sem mesa, nomes expansiveis, numero sugerido, area por grupo, titulo opcional e mesas reposicionaveis
 - Musicas por momento da cerimonia/festa
 - Identidade visual com fontes web gratuitas, preview tipografico ao vivo e paleta de cores organizada por grupos
 - Fornecedores com categorias reutilizaveis, agrupamento por categoria/status e ordenacao por nome ou valor
-- Pagamentos com vencimento e status
+- Pagamentos com vencimento, status, resumo financeiro e calendario mensal de parcelas pagas ou agendadas
 - Compromissos com data, hora, fornecedor e lembrete
 - Exportacao CSV do modulo atual
 

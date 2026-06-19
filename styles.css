@@ -732,6 +732,131 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   background: #f7efeb;
 }
 
+.payment-summary {
+  margin-top: 0;
+}
+
+.payment-calendar {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.payment-calendar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.payment-calendar-header h3 {
+  margin: 2px 0 6px;
+  font-size: 1.3rem;
+}
+
+.payment-calendar-header small {
+  color: var(--muted);
+}
+
+.calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: min(100%, 280px);
+  justify-content: flex-end;
+}
+
+.calendar-controls strong {
+  min-width: 150px;
+  text-align: center;
+  color: var(--plum);
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendar-weekdays span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.calendar-day {
+  min-height: 112px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.calendar-day.empty {
+  border-color: transparent;
+  background: transparent;
+}
+
+.calendar-date {
+  display: block;
+  color: var(--plum);
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.calendar-payment-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.calendar-payment {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 0;
+  border-radius: 8px;
+  background: #f5ece8;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.calendar-payment span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.calendar-payment strong {
+  font-size: 0.78rem;
+  color: var(--plum);
+}
+
+.calendar-payment.paid {
+  background: rgba(40, 124, 116, 0.14);
+}
+
+.calendar-payment.paid strong {
+  color: var(--teal);
+}
+
+.calendar-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #eee6e5;
+  color: var(--plum);
+  font-size: 0.9rem;
+}
+
 .vendor-groups {
   display: grid;
   gap: 16px;
@@ -1176,6 +1301,11 @@ td:last-child { text-align: right; white-space: nowrap; }
   .topbar-actions { width: 100%; justify-content: stretch; }
   .topbar-actions button { flex: 1 1 150px; }
   .metric-grid, .card-grid, .form-grid, .budget-summary, .budget-card-grid, .font-card-grid, .color-card-grid, .status-tabs { grid-template-columns: 1fr; }
+  .payment-calendar-header { flex-direction: column; }
+  .calendar-controls { width: 100%; justify-content: space-between; }
+  .calendar-weekdays,
+  .calendar-grid { min-width: 760px; }
+  .payment-calendar { overflow-x: auto; }
   .color-card { grid-template-columns: 56px 1fr; }
   .color-preview { width: 50px; height: 50px; }
   .kanban-column { min-height: 420px; }

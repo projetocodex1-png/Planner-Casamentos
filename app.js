@@ -27,31 +27,32 @@ const DEFAULT_GUEST_ROLES = [
   "Convidado comum"
 ];
 
+const DEFAULT_BUDGET_BASE = 80000;
 const DEFAULT_BUDGET_CATEGORIES = [
-  ["Local", 19],
-  ["Cerimonial / Assessoria", 6],
-  ["Fotografo", 5],
-  ["Video / Filmagem", 4],
-  ["Convite e papelaria", 2],
-  ["Identidade visual", 1],
-  ["DJ / Musicos", 4],
-  ["Lembrancinha", 2],
-  ["Decoracao", 5],
-  ["Vestido de noiva", 6],
-  ["Traje do noivo", 3],
-  ["Empresa de transporte", 2],
-  ["Gastronomia / Buffet", 10],
-  ["Locacao de moveis", 3],
-  ["Recreacionista / Espaco Kids", 1],
-  ["Bar de drinks", 3],
-  ["Maquiagem e cabelo", 2],
-  ["Mesa de doces", 3],
-  ["Bolo", 1],
-  ["Celebrante", 1],
-  ["Igreja", 1],
-  ["Cabine de fotos", 2],
-  ["Seguranca / Manobrista", 2],
-  ["Bem-casados", 1]
+  ["Local", 19, 20000, 15000],
+  ["Cerimonial / Assessoria", 6, 6400, 5000],
+  ["Fotografo", 5, 5600, 4000],
+  ["Video / Filmagem", 4, 4800, 3500],
+  ["Convite e papelaria", 2, 2400, 1500],
+  ["Identidade visual", 1, 1600, 1000],
+  ["DJ / Musicos", 4, 4000, 3000],
+  ["Lembrancinha", 2, 1600, 1500],
+  ["Decoracao", 5, 5600, 4000],
+  ["Vestido de noiva", 6, 6400, 5000],
+  ["Traje do noivo", 3, 2400, 2000],
+  ["Empresa de transporte", 2, 1600, 1500],
+  ["Gastronomia / Buffet", 10, 9600, 8000],
+  ["Locacao de moveis", 3, 2400, 2000],
+  ["Recreacionista / Espaco Kids", 1, 800, 1000],
+  ["Bar de drinks", 3, 3200, 2500],
+  ["Maquiagem e cabelo", 2, 1600, 1500],
+  ["Mesa de doces", 3, 2400, 2000],
+  ["Bolo", 1, 1600, 1000],
+  ["Celebrante", 1, 800, 800],
+  ["Igreja", 1, 800, 1000],
+  ["Cabine de fotos", 2, 1600, 1200],
+  ["Seguranca / Manobrista", 2, 1600, 1500],
+  ["Bem-casados", 1, 800, 500]
 ];
 
 const moduleConfig = {
@@ -215,7 +216,7 @@ const seedState = {
   wedding: null,
   currentView: "dashboard",
   checklistDefaultsVersion: 3,
-  budgetDefaultsVersion: 2,
+  budgetDefaultsVersion: 3,
   filters: {},
   tableSort: {},
   identityColorGroups: ["Decoracao", "Noiva", "Noivo", "Pais", "Madrinhas", "Padrinhos"],
@@ -227,6 +228,7 @@ const seedState = {
   tablePlanner: {
     expandedTables: []
   },
+  paymentCalendarMonth: "",
   vendorCategories: ["Buffet", "Vestido", "Traje", "Decoracao", "Fotografia", "Filmagem", "Doces", "Transporte", "Maquiagem", "Bar", "Local", "Musica"],
   vendorView: {
     groupBy: "category",
@@ -781,6 +783,13 @@ function renderModule(key) {
       renderModule("guests");
     });
   });
+  els.moduleView.querySelectorAll("[data-payment-month]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.paymentCalendarMonth = addMonths(paymentCalendarMonth(), Number(button.dataset.paymentMonth));
+      saveState();
+      renderModule("payments");
+    });
+  });
   els.moduleView.querySelectorAll("[data-edit]").forEach((button) => button.addEventListener("click", () => openItemDialog(key, button.dataset.edit)));
   els.moduleView.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", () => deleteItem(key, button.dataset.delete)));
   els.moduleView.querySelectorAll("[data-toggle-task]").forEach((button) => button.addEventListener("click", () => toggleChecklistTask(button.dataset.toggleTask)));
@@ -803,6 +812,7 @@ function renderModuleContent(key, items) {
   if (key === "guests") return renderGuests(items);
   if (key === "tables") return renderTablePlanner(items);
   if (key === "vendors") return renderVendors(items);
+  if (key === "payments") return renderPayments(items);
   if (layout === "table") return renderTable(key, items);
   if (layout === "kanban") return renderChecklistBoard(items);
   if (layout === "budget") return renderBudgetCards(items);
@@ -951,6 +961,79 @@ function wireBudgetInputs() {
       renderModule("budget");
     });
   });
+}
+
+function renderPayments(items) {
+  const paid = items.filter((payment) => payment.status === "Pago");
+  const scheduled = items.filter((payment) => payment.status !== "Pago");
+  const month = paymentCalendarMonth();
+  const monthPayments = items.filter((payment) => monthKey(payment.dueDate) === month);
+  return `
+    <div class="budget-summary payment-summary">
+      ${metric("Total pago", money(sum(paid, "amount")), "Pagamentos realizados")}
+      ${metric("A pagar", money(sum(scheduled, "amount")), "Pendentes e atrasados")}
+      ${metric("No mes", money(sum(monthPayments, "amount")), `${monthPayments.length} pagamento(s)`)}
+    </div>
+    ${renderPaymentCalendar(items, month)}
+    ${items.length ? renderTable("payments", items) : emptyPanel()}
+  `;
+}
+
+function renderPaymentCalendar(items, month) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const firstDay = new Date(year, monthNumber - 1, 1);
+  const lastDay = new Date(year, monthNumber, 0);
+  const leadingDays = firstDay.getDay();
+  const cells = [
+    ...Array.from({ length: leadingDays }, () => null),
+    ...Array.from({ length: lastDay.getDate() }, (_, index) => index + 1)
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+  const monthPayments = items.filter((payment) => monthKey(payment.dueDate) === month);
+  return `
+    <section class="payment-calendar panel">
+      <div class="payment-calendar-header">
+        <div>
+          <p class="eyebrow">Calendario de pagamentos</p>
+          <h3>Parcelas por data</h3>
+          <small>Pagos e agendados aparecem no mes de vencimento.</small>
+        </div>
+        <div class="calendar-controls">
+          <button class="icon-button" type="button" data-payment-month="-1" aria-label="Mes anterior">&lsaquo;</button>
+          <strong>${formatMonthTitle(month)}</strong>
+          <button class="icon-button" type="button" data-payment-month="1" aria-label="Proximo mes">&rsaquo;</button>
+        </div>
+      </div>
+      <div class="calendar-weekdays">
+        ${["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"].map((day) => `<span>${day}</span>`).join("")}
+      </div>
+      <div class="calendar-grid">
+        ${cells.map((day) => day ? renderPaymentCalendarDay(day, month, items) : '<div class="calendar-day empty"></div>').join("")}
+      </div>
+      <footer class="calendar-total">
+        <span>${formatMonthTitle(month)} - ${monthPayments.length} parcela(s)</span>
+        <strong>${money(sum(monthPayments, "amount"))}</strong>
+      </footer>
+    </section>
+  `;
+}
+
+function renderPaymentCalendarDay(day, month, items) {
+  const date = `${month}-${String(day).padStart(2, "0")}`;
+  const payments = items.filter((payment) => payment.dueDate === date);
+  return `
+    <div class="calendar-day">
+      <span class="calendar-date">${day}</span>
+      <div class="calendar-payment-list">
+        ${payments.map((payment) => `
+          <button class="calendar-payment ${payment.status === "Pago" ? "paid" : "scheduled"}" type="button" data-edit="${payment.id}">
+            <span>${escapeHtml(payment.description || payment.vendor || "Pagamento")}</span>
+            <strong>${money(payment.amount)}</strong>
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderVendors(items) {
@@ -2044,13 +2127,14 @@ function initializeBudgetDefaults() {
 }
 
 function defaultBudgetItems(totalBudget = 0) {
-  const budget = Number(totalBudget) || 0;
-  return DEFAULT_BUDGET_CATEGORIES.map(([category, share]) => ({
+  return DEFAULT_BUDGET_CATEGORIES.map(([category, share, suggestedBase, actualBase]) => ({
     id: uid(),
     category,
     share,
-    planned: Math.round((budget * share) / 100),
-    actual: 0,
+    suggestedBase,
+    actualBase,
+    planned: scaledBudgetValue(suggestedBase, totalBudget),
+    actual: scaledBudgetValue(actualBase, totalBudget),
     status: "Planejado",
     notes: ""
   }));
@@ -2058,17 +2142,58 @@ function defaultBudgetItems(totalBudget = 0) {
 
 function mergeDefaultBudgetItems(items = [], totalBudget = 0) {
   const currentItems = Array.isArray(items) ? items : [];
-  const seen = new Set(currentItems.map((item) => normalizeHeader(item.category)));
+  const mergedItems = currentItems.map((item) => mergeBudgetDefaultsIntoItem(item, totalBudget));
+  const seen = new Set(mergedItems.map((item) => normalizeHeader(item.category)));
   const missingDefaults = defaultBudgetItems(totalBudget).filter((item) => !seen.has(normalizeHeader(item.category)));
-  return [...currentItems, ...missingDefaults];
+  return [...mergedItems, ...missingDefaults];
+}
+
+function mergeBudgetDefaultsIntoItem(item, totalBudget = 0) {
+  const defaults = defaultBudgetForCategory(item.category);
+  if (!defaults) return item;
+  const planned = scaledBudgetValue(defaults.suggestedBase, totalBudget);
+  const actual = Number(item.actual) || 0;
+  return {
+    ...item,
+    share: Number(item.share) || defaults.share,
+    suggestedBase: Number(item.suggestedBase) || defaults.suggestedBase,
+    actualBase: Number(item.actualBase) || defaults.actualBase,
+    planned,
+    actual: actual || scaledBudgetValue(defaults.actualBase, totalBudget)
+  };
+}
+
+function defaultBudgetForCategory(category) {
+  const found = DEFAULT_BUDGET_CATEGORIES.find(([name]) => normalizeHeader(name) === normalizeHeader(category));
+  if (!found) return null;
+  const [name, share, suggestedBase, actualBase] = found;
+  return { name, share, suggestedBase, actualBase };
+}
+
+function hasMissingDefaultBudgetItems(items = []) {
+  const seen = new Set((items || []).map((item) => normalizeHeader(item.category)));
+  return DEFAULT_BUDGET_CATEGORIES.some(([category]) => !seen.has(normalizeHeader(category)));
+}
+
+function scaledBudgetValue(value, totalBudget = 0) {
+  const budget = Number(totalBudget) || 0;
+  if (!budget) return 0;
+  return Math.round((budget * Number(value || 0)) / DEFAULT_BUDGET_BASE);
 }
 
 function syncBudgetSuggestions() {
   const budget = Number(state.wedding?.budget) || 0;
-  state.data.budget = state.data.budget.map((item) => ({
-    ...item,
-    planned: Number(item.share) ? Math.round((budget * Number(item.share)) / 100) : Number(item.planned) || 0
-  }));
+  state.data.budget = state.data.budget.map((item) => {
+    const defaults = defaultBudgetForCategory(item.category);
+    return {
+      ...item,
+      planned: defaults
+        ? scaledBudgetValue(defaults.suggestedBase, budget)
+        : Number(item.share)
+          ? Math.round((budget * Number(item.share)) / 100)
+          : Number(item.planned) || 0
+    };
+  });
 }
 
 function paidPaymentsTotal() {
@@ -2340,7 +2465,14 @@ function normalizeState(nextState) {
     nextState.data.checklist = defaultChecklistTasks();
     nextState.checklistDefaultsVersion = seedState.checklistDefaultsVersion;
   }
-  if (nextState.wedding && nextState.budgetDefaultsVersion !== seedState.budgetDefaultsVersion) {
+  if (
+    nextState.wedding
+    && (
+      nextState.budgetDefaultsVersion !== seedState.budgetDefaultsVersion
+      || !(nextState.data.budget || []).length
+      || hasMissingDefaultBudgetItems(nextState.data.budget)
+    )
+  ) {
     nextState.data.budget = mergeDefaultBudgetItems(nextState.data.budget, nextState.wedding.budget);
     nextState.budgetDefaultsVersion = seedState.budgetDefaultsVersion;
   }
@@ -2352,9 +2484,13 @@ function normalizeState(nextState) {
   nextState.data.budget = nextState.data.budget.map((item) => ({
     ...item,
     share: Number(item.share) || 0,
-    planned: Number(item.share)
-      ? Math.round(((Number(nextState.wedding?.budget) || 0) * Number(item.share)) / 100)
-      : Number(item.planned) || 0,
+    suggestedBase: Number(item.suggestedBase) || 0,
+    actualBase: Number(item.actualBase) || 0,
+    planned: Number(item.suggestedBase)
+      ? scaledBudgetValue(item.suggestedBase, nextState.wedding?.budget)
+      : Number(item.share)
+        ? Math.round(((Number(nextState.wedding?.budget) || 0) * Number(item.share)) / 100)
+        : Number(item.planned) || 0,
     actual: Number(item.actual) || 0
   }));
   return nextState;
@@ -2566,6 +2702,30 @@ function parseCurrencyInput(value) {
   const reais = Number(reaisText.replace(/\D/g, "") || "0");
   const cents = Number(centsText.replace(/\D/g, "").slice(0, 2).padEnd(2, "0") || "0") / 100;
   return reais + cents;
+}
+
+function paymentCalendarMonth() {
+  if (state.paymentCalendarMonth) return state.paymentCalendarMonth;
+  const datedPayment = state.data.payments.find((payment) => payment.dueDate);
+  return monthKey(datedPayment?.dueDate) || monthKey(new Date().toISOString().slice(0, 10));
+}
+
+function monthKey(value) {
+  const normalized = normalizeWeddingDate(value);
+  return normalized ? normalized.slice(0, 7) : "";
+}
+
+function addMonths(month, amount) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year, monthNumber - 1 + amount, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatMonthTitle(month) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year, monthNumber - 1, 1);
+  const title = date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  return title.charAt(0).toUpperCase() + title.slice(1);
 }
 
 function placeCurrencyCursor(input) {
