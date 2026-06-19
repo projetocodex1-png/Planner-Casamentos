@@ -27,6 +27,8 @@ const DEFAULT_GUEST_ROLES = [
   "Convidado comum"
 ];
 
+const DEFAULT_MUSIC_MOMENTS = ["Entrada", "Cerimonia", "Aliancas", "Cumprimentos", "Primeira danca", "Festa", "Encerramento"];
+
 const DEFAULT_BUDGET_BASE = 80000;
 const DEFAULT_BUDGET_CATEGORIES = [
   ["Local", 19, 20000, 15000],
@@ -125,7 +127,8 @@ const moduleConfig = {
     fields: [
       ["song", "Musica", "text", true],
       ["artist", "Artista", "text", false],
-      ["moment", "Momento", "select", true, ["Entrada", "Cerimonia", "Aliancas", "Cumprimentos", "Primeira danca", "Festa", "Encerramento"]],
+      ["link", "Link da musica", "url", false],
+      ["moment", "Momento", "select", true, DEFAULT_MUSIC_MOMENTS],
       ["status", "Status", "select", true, ["Sugestao", "Aprovada", "Enviar para DJ", "Confirmada"]],
       ["notes", "Observacoes", "textarea", false]
     ],
@@ -227,6 +230,7 @@ const seedState = {
     groupBy: "none"
   },
   guestExtraColumns: [],
+  musicMoments: DEFAULT_MUSIC_MOMENTS,
   tablePlanner: {
     expandedTables: []
   },
@@ -583,6 +587,13 @@ function wireShell() {
       render();
       return;
     }
+    if (key === "music") {
+      saveMusicItem(form);
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
     const item = { id: editing.id || uid() };
     moduleConfig[key].fields.forEach(([name, , type]) => {
       const raw = form.get(name);
@@ -835,6 +846,7 @@ function renderFilter(key, field) {
   let values = [...new Set(state.data[key].map((item) => item[field]).filter(Boolean))];
   if (key === "vendors" && field === "category") values = state.vendorCategories;
   if (key === "guests" && field === "group") values = state.guestGroups;
+  if (key === "music" && field === "moment") values = state.musicMoments;
   const selected = state.filters[key]?.[field] || "";
   return `
     <select data-filter-field="${field}">
@@ -1533,6 +1545,11 @@ function openItemDialog(key, id = null) {
     els.itemDialog.showModal();
     return;
   }
+  if (key === "music") {
+    renderMusicForm(item || {});
+    els.itemDialog.showModal();
+    return;
+  }
   els.itemFields.innerHTML = config.fields.map(([name, label, type, required, options]) => {
     const value = item?.[name] ?? "";
     if (type === "textarea") {
@@ -1789,6 +1806,60 @@ function saveGuestItem(form) {
   };
   if (editing.id) state.data.guests = state.data.guests.map((entry) => entry.id === editing.id ? item : entry);
   else state.data.guests.push(item);
+  saveState();
+}
+
+function renderMusicForm(item) {
+  const selectedMoment = item.moment ? (state.musicMoments.includes(item.moment) ? item.moment : "Novo momento") : "Entrada";
+  const customMoment = selectedMoment === "Novo momento" ? item.moment || "" : "";
+  document.querySelector("#itemDialogEyebrow").textContent = "Momentos";
+  document.querySelector("#itemDialogTitle").textContent = item.id ? "Editar musica" : "Adicionar musica";
+  els.itemFields.innerHTML = `
+    <label class="full-field">Musica<input name="song" required value="${escapeHtml(item.song || "")}" placeholder="Nome da musica"></label>
+    <label>Artista<input name="artist" value="${escapeHtml(item.artist || "")}" placeholder="Artista"></label>
+    <label>Link da musica<input name="link" type="url" value="${escapeHtml(item.link || "")}" placeholder="https://"></label>
+    <label>Momento
+      <select name="moment" required>
+        ${state.musicMoments.map((moment) => `<option ${selectedMoment === moment ? "selected" : ""}>${escapeHtml(moment)}</option>`).join("")}
+        <option ${selectedMoment === "Novo momento" ? "selected" : ""}>Novo momento</option>
+      </select>
+    </label>
+    <label data-new-music-moment>Novo momento<input name="newMoment" value="${escapeHtml(customMoment)}" placeholder="Ex: Corte do bolo"></label>
+    <label>Status
+      <select name="status" required>
+        ${["Sugestao", "Aprovada", "Enviar para DJ", "Confirmada"].map((status) => `<option ${(item.status || "Sugestao") === status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}
+      </select>
+    </label>
+    <label class="full-field">Observacoes<textarea name="notes">${escapeHtml(item.notes || "")}</textarea></label>
+  `;
+  wireMusicForm();
+}
+
+function wireMusicForm() {
+  const momentSelect = els.itemForm.elements.moment;
+  const newMomentField = els.itemFields.querySelector("[data-new-music-moment]");
+  const refresh = () => newMomentField.classList.toggle("hidden", momentSelect.value !== "Novo momento");
+  momentSelect.addEventListener("change", refresh);
+  refresh();
+}
+
+function saveMusicItem(form) {
+  let moment = String(form.get("moment") || "").trim();
+  const newMoment = String(form.get("newMoment") || "").trim();
+  if (moment === "Novo momento" && newMoment) moment = newMoment;
+  if (!moment || moment === "Novo momento") moment = "Entrada";
+  if (!state.musicMoments.includes(moment)) state.musicMoments.push(moment);
+  const item = {
+    id: editing.id || uid(),
+    song: String(form.get("song") || "").trim(),
+    artist: String(form.get("artist") || "").trim(),
+    link: String(form.get("link") || "").trim(),
+    moment,
+    status: form.get("status") || "Sugestao",
+    notes: form.get("notes") || ""
+  };
+  if (editing.id) state.data.music = state.data.music.map((entry) => entry.id === editing.id ? item : entry);
+  else state.data.music.push(item);
   saveState();
 }
 
@@ -2557,6 +2628,14 @@ function normalizeState(nextState) {
     groupBy: "none",
     ...(nextState.guestView || {})
   };
+  nextState.data.music ||= structuredClone(seedState.data.music);
+  const dataMusicMoments = nextState.data.music.map((item) => item.moment).filter(Boolean);
+  nextState.musicMoments = [...new Set([...DEFAULT_MUSIC_MOMENTS, ...(nextState.musicMoments || []), ...dataMusicMoments])];
+  nextState.data.music = nextState.data.music.map((item) => ({
+    ...item,
+    link: item.link || "",
+    moment: item.moment || "Entrada"
+  }));
   nextState.data.tables ||= structuredClone(seedState.data.tables);
   nextState.data.tables = nextState.data.tables.map((table, index) => {
     const position = tablePosition(table, index);
@@ -2946,7 +3025,15 @@ function formatValue(field, value) {
   if (["planned", "actual", "value", "amount"].includes(field)) return money(value);
   if (field.toLowerCase().includes("date") || field === "date") return formatDate(value);
   if (field === "phone") return formatWhatsAppLink(value);
+  if (field === "link") return formatExternalLink(value);
   return escapeHtml(value);
+}
+
+function formatExternalLink(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const href = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+  return `<a class="whatsapp-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
 }
 
 function formatWhatsAppLink(value) {
@@ -3003,6 +3090,7 @@ function labelForField(field) {
     area: "Area",
     song: "Musica",
     artist: "Artista",
+    link: "Link da musica",
     moment: "Momento",
     contact: "Contato",
     value: "Valor",

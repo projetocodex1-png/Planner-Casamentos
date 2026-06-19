@@ -36,7 +36,7 @@ Em Authentication > URL Configuration, configure:
 - Convidados com RSVP, tipo adulto/crianca, grupos e papeis reutilizaveis, colunas personalizadas, importacao CSV, filtros e organizacao por grupo, papel ou status
 - Importacao de convidados por cabecalhos flexiveis, aceitando CSV com virgula, ponto e virgula ou tab
 - Mesas com mapa visual, arraste de convidados com rolagem automatica, selecao de mesa por clique, nomes soltos no mapa, grupo sem mesa, nomes expansiveis, numero sugerido, area por grupo, titulo opcional e mesas reposicionaveis
-- Musicas por momento da cerimonia/festa
+- Musicas por momento da cerimonia/festa, com link da musica e momentos reutilizaveis criados pelo usuario
 - Identidade visual com fontes web gratuitas, preview tipografico ao vivo e paleta de cores organizada por grupos
 - Fornecedores com categorias reutilizaveis, agrupamento por categoria/status e ordenacao por nome ou valor
 - Pagamentos com vencimento, status, resumo financeiro e calendario mensal de parcelas pagas ou agendadas
