@@ -28,6 +28,41 @@ const DEFAULT_GUEST_ROLES = [
 ];
 
 const DEFAULT_MUSIC_MOMENTS = ["Entrada", "Cerimonia", "Aliancas", "Cumprimentos", "Primeira danca", "Festa", "Encerramento"];
+const DEFAULT_CHECKLIST_CATEGORIES = [
+  "Acessorios",
+  "Aliancas",
+  "Bar",
+  "Beleza",
+  "Bem-estar",
+  "Cerimonial",
+  "Cerimonia",
+  "Convidados",
+  "Contratos",
+  "Cronograma",
+  "Decoracao",
+  "Doces",
+  "Documentos",
+  "Eventos",
+  "Fornecedores",
+  "Gastronomia",
+  "Hospedagem",
+  "Identidade",
+  "Imagem",
+  "Lembrancas",
+  "Local",
+  "Lua de mel",
+  "Mesas",
+  "Musica",
+  "Operacao",
+  "Orcamento",
+  "Pagamentos",
+  "Papelaria",
+  "Planejamento",
+  "Presentes",
+  "Site",
+  "Trajes",
+  "Transporte"
+];
 
 const DEFAULT_BUDGET_BASE = 80000;
 const DEFAULT_BUDGET_CATEGORIES = [
@@ -66,10 +101,10 @@ const moduleConfig = {
     fields: [
       ["title", "Tarefa", "text", true],
       ["period", "Periodo", "select", true, ["12 meses", "10 meses", "9 meses", "8 meses", "6 meses", "4 meses", "3 meses", "2 meses", "1 mes", "Semana"]],
-      ["category", "Categoria", "text", true],
+      ["category", "Categoria", "select", true, DEFAULT_CHECKLIST_CATEGORIES],
       ["status", "Status", "select", true, ["Pendente", "Concluido"]],
       ["priority", "Prioridade", "select", true, ["Baixa", "Media", "Alta"]],
-      ["dueDate", "Prazo", "date", false],
+      ["owner", "Responsavel", "text", false],
       ["notes", "Observacoes", "textarea", false]
     ],
     filters: ["status", "period", "priority"]
@@ -913,7 +948,10 @@ function renderChecklistBoard(items) {
               ${periodItems.map((item) => `
                 <article class="task-pill">
                   <button class="task-check ${item.status === "Concluido" ? "done" : ""}" type="button" data-toggle-task="${item.id}" aria-label="${item.status === "Concluido" ? "Marcar como pendente" : "Marcar como concluido"}"></button>
-                  <strong>${escapeHtml(item.title)}</strong>
+                  <div class="task-copy">
+                    <strong>${escapeHtml(item.title)}</strong>
+                    ${item.owner ? `<small>Responsavel: ${escapeHtml(item.owner)}</small>` : ""}
+                  </div>
                   <span class="chip ${chipColor(item.priority)}">${escapeHtml(item.priority || "Media")}</span>
                   <div class="item-actions compact">
                     <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
@@ -2484,7 +2522,7 @@ function defaultChecklistTasks() {
     category,
     status: "Pendente",
     priority,
-    dueDate: "",
+    owner: "",
     notes: ""
   }));
 }
@@ -2679,6 +2717,7 @@ function normalizeState(nextState) {
   nextState.data.checklist = nextState.data.checklist.map((item) => ({
     ...item,
     priority: item.priority || "Media",
+    owner: item.owner || "",
     status: item.status === "Concluido" ? "Concluido" : "Pendente"
   }));
   nextState.data.budget = nextState.data.budget.map((item) => ({
@@ -3073,6 +3112,7 @@ function labelForField(field) {
     category: "Categoria",
     status: "Status",
     priority: "Prioridade",
+    owner: "Responsavel",
     dueDate: "Prazo",
     notes: "Observacoes",
     section: "Secao",

@@ -636,10 +636,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   background: #f7ece8;
 }
 
+.task-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
 .task-pill strong {
   min-width: 0;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.task-copy small {
+  color: var(--muted);
+  font-weight: 750;
 }
 
 .task-check {
