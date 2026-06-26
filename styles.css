@@ -180,6 +180,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 .link-button { width: fit-content; padding: 0; background: transparent; color: var(--teal); border: 0; }
 .icon-button { min-width: 38px; padding: 0 10px; background: #f4ece4; border-color: var(--line); }
 .icon-button.danger { color: var(--danger); }
+.icon-button svg,
+.secondary-action svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-only {
+  width: 38px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.icon-only.edit { color: var(--teal); }
 
 .auth-art {
   position: relative;
@@ -1156,9 +1175,28 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .color-group > header h3 { margin: 0; }
 
+.color-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 12px;
+  border-color: rgba(40, 124, 116, 0.28);
+  background: rgba(40, 124, 116, 0.1);
+  color: var(--teal);
+}
+
 .color-card {
   grid-template-columns: 74px 1fr;
   align-items: center;
+}
+
+.compact-color-card {
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 78px;
+  padding: 10px;
 }
 
 .color-preview {
@@ -1167,6 +1205,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.compact-color-card .color-preview {
+  width: 46px;
+  height: 46px;
+}
+
+.color-card-info {
+  min-width: 0;
 }
 
 .color-card strong,
@@ -1188,6 +1235,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .color-card .item-actions {
   grid-column: 1 / -1;
+}
+
+.compact-color-card .item-actions {
+  grid-column: auto;
+  align-self: center;
+}
+
+.icon-actions {
+  gap: 4px;
 }
 
 .guest-summary {
@@ -1316,6 +1372,8 @@ td:last-child { text-align: right; white-space: nowrap; }
   .payment-calendar { overflow-x: auto; }
   .color-card { grid-template-columns: 56px 1fr; }
   .color-preview { width: 50px; height: 50px; }
+  .compact-color-card { grid-template-columns: 46px minmax(0, 1fr) auto; }
+  .compact-color-card .color-preview { width: 40px; height: 40px; }
   .task-pill { grid-template-columns: 24px 1fr; }
   .task-pill .chip { justify-self: start; grid-column: 2; }
   h1 { max-width: 11ch; font-size: 3rem; }

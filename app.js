@@ -1325,26 +1325,36 @@ function renderColorGroups(colors) {
     <section class="color-group">
       <header>
         <h3>${escapeHtml(group)}</h3>
-        <button class="secondary-action" type="button" data-add-identity-color="${escapeHtml(group)}">Adicionar cor</button>
+        <button class="secondary-action color-add-button" type="button" data-add-identity-color="${escapeHtml(group)}" aria-label="Adicionar cor em ${escapeHtml(group)}">
+          ${iconSvg("plus")}
+          <span>Cor</span>
+        </button>
       </header>
       <div class="color-card-grid">
-        ${colors.filter((item) => (item.group || "Outros") === group).map((item) => `
-          <article class="color-card">
-            <span class="color-preview" style="background:${escapeHtml(item.colorHex || item.color || "#ffffff")}"></span>
-            <div>
-              <strong>${escapeHtml(item.usage || "Uso nao informado")}</strong>
-              <span>${escapeHtml(item.colorName || item.name)}</span>
-              <code>${escapeHtml(item.colorHex || item.color || "")}</code>
-            </div>
-            <div class="item-actions">
-              <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
-              <button class="icon-button danger" type="button" data-delete="${item.id}">Excluir</button>
-            </div>
-          </article>
-        `).join("") || '<p class="muted-note">Nenhuma cor neste grupo.</p>'}
+        ${colors.filter((item) => (item.group || "Outros") === group).map(renderColorCard).join("") || '<p class="muted-note">Nenhuma cor neste grupo.</p>'}
       </div>
     </section>
   `).join("");
+}
+
+function renderColorCard(item) {
+  const hex = item.colorHex || item.color || "";
+  const primary = item.usage || item.colorName || item.name || hex || "Cor";
+  const colorName = item.colorName || item.name || "";
+  return `
+    <article class="color-card compact-color-card">
+      <span class="color-preview" style="background:${escapeHtml(hex || "#ffffff")}"></span>
+      <div class="color-card-info">
+        ${primary ? `<strong>${escapeHtml(primary)}</strong>` : ""}
+        ${colorName && colorName !== primary ? `<span>${escapeHtml(colorName)}</span>` : ""}
+        ${hex && hex !== primary && hex !== colorName ? `<code>${escapeHtml(hex)}</code>` : ""}
+      </div>
+      <div class="item-actions icon-actions">
+        <button class="icon-button icon-only edit" type="button" data-edit="${item.id}" title="Editar" aria-label="Editar">${iconSvg("edit")}</button>
+        <button class="icon-button icon-only danger" type="button" data-delete="${item.id}" title="Excluir" aria-label="Excluir">${iconSvg("trash")}</button>
+      </div>
+    </article>
+  `;
 }
 
 function renderCards(key, items) {
@@ -3093,6 +3103,15 @@ function whatsappNumber(value) {
   if (!digits) return "";
   if ((digits.length === 10 || digits.length === 11) && !digits.startsWith("55")) digits = `55${digits}`;
   return digits.length >= 10 ? digits : "";
+}
+
+function iconSvg(name) {
+  const icons = {
+    plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16v4zM13 7l4 4"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M8 10v9M12 10v9M16 10v9M6 7l1 14h10l1-14"/></svg>'
+  };
+  return icons[name] || "";
 }
 
 function csvCell(value) {
