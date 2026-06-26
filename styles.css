@@ -200,6 +200,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .icon-only.edit { color: var(--teal); }
 
+.action-link {
+  border-color: transparent;
+  background: transparent;
+}
+
+.action-link:hover {
+  background: rgba(40, 124, 116, 0.08);
+}
+
+.action-link.danger:hover {
+  background: rgba(168, 65, 65, 0.08);
+}
+
 .auth-art {
   position: relative;
   display: grid;
@@ -1195,6 +1208,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   grid-template-columns: 52px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+  width: min(100%, 430px);
   min-height: 78px;
   padding: 10px;
 }

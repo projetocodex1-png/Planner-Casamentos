@@ -954,10 +954,7 @@ function renderChecklistBoard(items) {
                     ${item.owner ? `<small>Responsavel: ${escapeHtml(item.owner)}</small>` : ""}
                   </div>
                   <span class="chip ${chipColor(item.priority)}">${escapeHtml(item.priority || "Media")}</span>
-                  <div class="item-actions compact">
-                    <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
-                    <button class="icon-button danger" type="button" data-delete="${item.id}">Excluir</button>
-                  </div>
+                  ${actionButtons(item.id, "compact")}
                 </article>
               `).join("") || '<p class="muted-note">Sem tarefas neste periodo.</p>'}
             </div>
@@ -999,10 +996,7 @@ function renderBudgetCards(items) {
             Real
             <input data-budget-actual="${item.id}" type="text" inputmode="numeric" value="${money(item.actual)}" placeholder="R$ 0,00">
           </label>
-          <div class="item-actions">
-            <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
-            <button class="icon-button danger" type="button" data-delete="${item.id}">Excluir</button>
-          </div>
+          ${actionButtons(item.id)}
         </article>
       `).join("")}
     </div>
@@ -1127,10 +1121,7 @@ function renderVendors(items) {
                     <td>${money(item.value)}</td>
                     <td><span class="chip ${chipColor(item.status)}">${escapeHtml(item.status)}</span></td>
                     <td>${escapeHtml(item.contract)}</td>
-                    <td>
-                      <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
-                      <button class="icon-button danger" type="button" data-delete="${item.id}">Excluir</button>
-                    </td>
+                    <td>${actionButtons(item.id)}</td>
                   </tr>
                 `).join("")}
               </tbody>
@@ -1232,10 +1223,7 @@ function renderTableShape(table, index) {
       </div>
       <div class="table-node-footer">
         <span>${escapeHtml(table.area || "Area livre")}</span>
-        <div class="item-actions compact">
-          <button class="icon-button" type="button" data-edit="${table.id}">Editar</button>
-          <button class="icon-button danger" type="button" data-delete="${table.id}">Excluir</button>
-        </div>
+        ${actionButtons(table.id, "compact")}
       </div>
       <div class="table-guest-list ${isExpanded ? "expanded" : "collapsed"}">
         ${visibleGuests.map(renderGuestToken).join("") || '<span class="muted-note">Arraste convidados para ca.</span>'}
@@ -1295,10 +1283,7 @@ function renderIdentity(items) {
                 <span><strong>Estilo:</strong> ${escapeHtml(item.fontStyle || "-")}</span>
                 <span><strong>Fonte:</strong> ${escapeHtml(item.fontName || "Outra fonte")}</span>
               </div>
-              <div class="item-actions">
-                <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
-                <button class="icon-button danger" type="button" data-delete="${item.id}">Excluir</button>
-              </div>
+            ${actionButtons(item.id)}
             </article>
           `).join("") || '<p class="muted-note">Nenhuma tipografia cadastrada.</p>'}
         </div>
@@ -1349,11 +1334,17 @@ function renderColorCard(item) {
         ${colorName && colorName !== primary ? `<span>${escapeHtml(colorName)}</span>` : ""}
         ${hex && hex !== primary && hex !== colorName ? `<code>${escapeHtml(hex)}</code>` : ""}
       </div>
-      <div class="item-actions icon-actions">
-        <button class="icon-button icon-only edit" type="button" data-edit="${item.id}" title="Editar" aria-label="Editar">${iconSvg("edit")}</button>
-        <button class="icon-button icon-only danger" type="button" data-delete="${item.id}" title="Excluir" aria-label="Excluir">${iconSvg("trash")}</button>
-      </div>
+      ${actionButtons(item.id)}
     </article>
+  `;
+}
+
+function actionButtons(id, extraClass = "") {
+  return `
+    <div class="item-actions icon-actions ${extraClass}">
+      <button class="icon-button icon-only edit action-link" type="button" data-edit="${id}" title="Editar" aria-label="Editar">${iconSvg("edit")}</button>
+      <button class="icon-button icon-only danger action-link" type="button" data-delete="${id}" title="Excluir" aria-label="Excluir">${iconSvg("trash")}</button>
+    </div>
   `;
 }
 
@@ -1374,10 +1365,7 @@ function renderCards(key, items) {
         </header>
         ${load ? `<div><div class="progress-rail"><div class="progress-bar" style="width:${load.percent}%"></div></div><small>${load.used}/${load.capacity} lugares</small></div>` : ""}
         <div class="item-meta">${meta.map(([field, value]) => `<span><strong>${labelForField(field)}:</strong> ${formatValue(field, value)}</span>`).join("")}</div>
-        <div class="item-actions">
-          <button class="icon-button" type="button" data-edit="${item.id}" title="Editar">Editar</button>
-          <button class="icon-button danger" type="button" data-delete="${item.id}" title="Excluir">Excluir</button>
-        </div>
+        ${actionButtons(item.id)}
       </article>
     `;
   }).join("")}</div>`;
@@ -1402,10 +1390,7 @@ function renderTable(key, items) {
         <tbody>${sortedItems.map((item) => `
           <tr>
             ${fields.map((field) => `<td>${formatValue(field, tableCellValue(key, item, field))}</td>`).join("")}
-            <td>
-              <button class="icon-button" type="button" data-edit="${item.id}">Editar</button>
-              <button class="icon-button danger" type="button" data-delete="${item.id}">Excluir</button>
-            </td>
+            <td>${actionButtons(item.id)}</td>
           </tr>
         `).join("")}</tbody>
       </table>
