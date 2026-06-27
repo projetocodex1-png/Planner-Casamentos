@@ -1245,7 +1245,6 @@ function renderGuests(items) {
 function renderWeddingParty() {
   const godmothers = weddingPartyGuests("Madrinha");
   const godfathers = weddingPartyGuests("Padrinho");
-  const colors = state.data.identity.filter((item) => item.section === "Paleta de cores");
   return `
     <div class="wedding-party-layout">
       <section class="panel">
@@ -1266,7 +1265,6 @@ function renderWeddingParty() {
         </div>
         ${renderWeddingPartyCards(godfathers)}
       </section>
-      ${renderWeddingPartyAttire(colors)}
       ${renderWeddingPartyManual()}
     </div>
   `;
@@ -1585,6 +1583,7 @@ function normalizeWeddingPartyManual(manual = {}, configSource = state.weddingPa
 function renderWeddingPartyManual() {
   const manual = normalizeWeddingPartyManual(state.weddingPartyManual || {});
   const fields = weddingPartyManualFields();
+  const colors = state.data.identity.filter((item) => item.section === "Paleta de cores");
   return `
     <section class="panel wedding-party-manual">
       <div class="panel-header">
@@ -1608,11 +1607,52 @@ function renderWeddingPartyManual() {
             ${manual[name]
               ? `<p class="manual-answer">${formatMultilineText(manual[name])}</p>`
               : '<p class="manual-empty">Campo em branco.</p>'}
+            ${renderWeddingPartyManualExtras(name, colors)}
           </article>
         `).join("") : '<p class="muted-note">Nenhum campo no manual. Adicione um campo para comecar.</p>'}
       </div>
     </section>
   `;
+}
+
+function renderWeddingPartyManualExtras(name, colors) {
+  const details = normalizeWeddingPartyDetails(state.weddingPartyDetails || {});
+  if (name === "godmotherDressCode") {
+    return `
+      <div class="manual-extra-block">
+        <h5>Paleta de cores dos vestidos</h5>
+        ${renderWeddingPartyPalette(colors, "Madrinhas")}
+      </div>
+      <div class="manual-extra-block">
+        <h5>Tipo de vestido e orientações</h5>
+        <div class="option-stack">
+          ${GODMOTHER_DRESS_OPTIONS.map((option) => `
+            <label class="inline-check">
+              <input type="checkbox" data-wedding-party-detail="godmotherDressOptions" value="${escapeHtml(option)}" ${details.godmotherDressOptions.includes(option) ? "checked" : ""}>
+              <span>${escapeHtml(option)}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+      <div class="manual-extra-block">
+        <h5>Corsage / Buquê das madrinhas?</h5>
+        ${renderYesNoOptions("godmotherCorsage", details.godmotherCorsage)}
+      </div>
+    `;
+  }
+  if (name === "godfatherDressCode") {
+    return `
+      <div class="manual-extra-block">
+        <h5>Paleta de cores do traje</h5>
+        ${renderWeddingPartyPalette(colors, "Padrinhos")}
+      </div>
+      <div class="manual-extra-block">
+        <h5>Lapela dos padrinhos?</h5>
+        ${renderYesNoOptions("godfatherLapel", details.godfatherLapel)}
+      </div>
+    `;
+  }
+  return "";
 }
 
 function openWeddingPartyManualDialog(field = "welcome") {

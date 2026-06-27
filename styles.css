@@ -1382,6 +1382,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   font-style: italic;
 }
 
+.manual-extra-block {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.manual-extra-block h5 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .wedding-party-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
