@@ -64,6 +64,20 @@ const DEFAULT_CHECKLIST_CATEGORIES = [
   "Trajes",
   "Transporte"
 ];
+const DEFAULT_WEDDING_PARTY_MANUAL = {
+  welcome: "Você faz parte da nossa história e queremos muito ter você pertinho nesse dia tão especial. Preparamos este manual com carinho para deixar tudo mais leve e organizado.",
+  weddingInfo: "Data, horário, endereços da cerimônia e da festa, horário de chegada dos padrinhos e madrinhas e ponto de encontro no local.",
+  godmotherDressCode: "Paleta de cores, modelo livre ou padronizado, comprimento do vestido, tecido indicado, cores a evitar e orientações sobre brilho, estampas ou transparência.",
+  godfatherDressCode: "Cor do terno, camisa, gravata ou acessório, sapato e cinto, e se haverá aluguel conjunto ou cada um providencia o seu.",
+  inspirations: "Referências da paleta, vestidos, ternos, gravatas, buquês ou acessórios para alinhar o estilo sem deixar tudo rígido.",
+  ceremonyEntrance: "Se entram em casal, ordem de entrada, ensaio, local de espera antes da cerimônia e chegada antecipada para fotos.",
+  photos: "Horário e local das fotos, orientação para não sair logo após a cerimônia e combinados sobre celular em momentos específicos.",
+  gifts: "Link da lista de presentes ou mensagem carinhosa reforçando que não há obrigação e que a presença já é o mais importante.",
+  contacts: "Contato da assessora, cerimonialista, madrinha responsável ou familiar de apoio para o dia do casamento.",
+  timeline: "15h30 - Chegada dos padrinhos\n16h00 - Fotos\n17h00 - Cerimônia\n18h00 - Cumprimentos\n19h00 - Festa",
+  gentleRules: "Respeitar a paleta escolhida, chegar no horário combinado, avisar imprevistos com antecedência, evitar spoilers antes da cerimônia e curtir o dia com leveza.",
+  closing: "Essas orientações foram pensadas para que todo mundo se sinta seguro, bonito e alinhado no nosso grande dia."
+};
 
 const DEFAULT_BUDGET_BASE = 80000;
 const DEFAULT_BUDGET_CATEGORIES = [
@@ -276,6 +290,7 @@ const seedState = {
   },
   guestExtraColumns: [],
   musicMoments: DEFAULT_MUSIC_MOMENTS,
+  weddingPartyManual: structuredClone(DEFAULT_WEDDING_PARTY_MANUAL),
   tablePlanner: {
     expandedTables: []
   },
@@ -605,6 +620,13 @@ function wireShell() {
       render();
       return;
     }
+    if (key === "weddingPartyManual") {
+      saveWeddingPartyManual(form);
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
     if (key === "identity") {
       saveIdentityItem(form);
       els.itemDialog.close();
@@ -852,6 +874,7 @@ function renderModule(key) {
     });
   });
   els.moduleView.querySelector("[data-add-guest-column]")?.addEventListener("click", openGuestColumnDialog);
+  els.moduleView.querySelector("[data-edit-wedding-party-manual]")?.addEventListener("click", openWeddingPartyManualDialog);
   els.moduleView.querySelectorAll("[data-payment-month]").forEach((button) => {
     button.addEventListener("click", () => {
       state.paymentCalendarMonth = addMonths(paymentCalendarMonth(), Number(button.dataset.paymentMonth));
@@ -1192,6 +1215,7 @@ function renderWeddingParty() {
         ${metric("Padrinhos", godfathers.length, "Puxado de Convidados")}
         ${metric("Cores vinculadas", colors.filter((item) => ["Madrinhas", "Padrinhos"].includes(item.group)).length, "Puxado da Identidade")}
       </div>
+      ${renderWeddingPartyManual()}
       <section class="panel">
         <div class="panel-header">
           <div>
@@ -1234,6 +1258,43 @@ function renderWeddingParty() {
   `;
 }
 
+function renderWeddingPartyManual() {
+  const manual = state.weddingPartyManual || DEFAULT_WEDDING_PARTY_MANUAL;
+  const sections = [
+    ["Boas-vindas", manual.welcome],
+    ["Informações do casamento", manual.weddingInfo],
+    ["Traje das madrinhas", manual.godmotherDressCode],
+    ["Traje dos padrinhos", manual.godfatherDressCode],
+    ["Inspirações visuais", manual.inspirations],
+    ["Entrada na cerimônia", manual.ceremonyEntrance],
+    ["Fotos", manual.photos],
+    ["Presentes e contribuições", manual.gifts],
+    ["Contatos importantes", manual.contacts],
+    ["Cronograma resumido", manual.timeline],
+    ["Regras gentis", manual.gentleRules],
+    ["Agradecimento final", manual.closing]
+  ];
+  return `
+    <section class="panel wedding-party-manual">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Manual</p>
+          <h3>Guia dos padrinhos e madrinhas</h3>
+        </div>
+        <button class="secondary-action" type="button" data-edit-wedding-party-manual>Editar manual</button>
+      </div>
+      <div class="manual-section-grid">
+        ${sections.map(([title, text]) => `
+          <article class="manual-section">
+            <h4>${escapeHtml(title)}</h4>
+            <p>${formatMultilineText(text)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function weddingPartyGuests(role) {
   return state.data.guests
     .filter((guest) => normalizeGuestRole(guest.role) === role && guest.rsvp !== "Não vai")
@@ -1269,6 +1330,44 @@ function renderWeddingPartyPalette(colors, group) {
   const groupColors = colors.filter((item) => item.group === group);
   if (!groupColors.length) return `<p class="muted-note">Nenhuma cor cadastrada para ${escapeHtml(group)}.</p>`;
   return `<div class="color-card-grid wedding-party-colors">${groupColors.map(renderColorCard).join("")}</div>`;
+}
+
+function openWeddingPartyManualDialog() {
+  editing = { key: "weddingPartyManual", id: null };
+  const manual = state.weddingPartyManual || DEFAULT_WEDDING_PARTY_MANUAL;
+  const fields = weddingPartyManualFields();
+  document.querySelector("#itemDialogEyebrow").textContent = "Manual";
+  document.querySelector("#itemDialogTitle").textContent = "Editar manual dos padrinhos";
+  els.itemFields.innerHTML = fields.map(([name, label]) => `
+    <label class="full-field">${escapeHtml(label)}<textarea name="${name}">${escapeHtml(manual[name] || "")}</textarea></label>
+  `).join("");
+  els.itemDialog.showModal();
+}
+
+function saveWeddingPartyManual(form) {
+  const nextManual = {};
+  weddingPartyManualFields().forEach(([name]) => {
+    nextManual[name] = String(form.get(name) || "").trim();
+  });
+  state.weddingPartyManual = nextManual;
+  saveState();
+}
+
+function weddingPartyManualFields() {
+  return [
+    ["welcome", "Boas-vindas"],
+    ["weddingInfo", "Informações do casamento"],
+    ["godmotherDressCode", "Traje das madrinhas"],
+    ["godfatherDressCode", "Traje dos padrinhos"],
+    ["inspirations", "Inspirações visuais"],
+    ["ceremonyEntrance", "Entrada na cerimônia"],
+    ["photos", "Fotos"],
+    ["gifts", "Presentes e contribuições"],
+    ["contacts", "Contatos importantes"],
+    ["timeline", "Cronograma resumido"],
+    ["gentleRules", "Regras gentis"],
+    ["closing", "Agradecimento final"]
+  ];
 }
 
 function renderTablePlanner(tables) {
@@ -2752,6 +2851,10 @@ function findDefaultGuestOption(options, value) {
 }
 
 function normalizeState(nextState) {
+  nextState.weddingPartyManual = {
+    ...structuredClone(DEFAULT_WEDDING_PARTY_MANUAL),
+    ...(nextState.weddingPartyManual || {})
+  };
   if (nextState.wedding) {
     nextState.wedding.coupleType ||= "bride_groom";
     nextState.wedding.date = normalizeWeddingDate(nextState.wedding.date);
@@ -3203,6 +3306,10 @@ function formatExternalLink(value) {
   if (!text) return "";
   const href = /^https?:\/\//i.test(text) ? text : `https://${text}`;
   return `<a class="whatsapp-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
+}
+
+function formatMultilineText(value) {
+  return escapeHtml(value || "").replace(/\n/g, "<br>");
 }
 
 function formatWhatsAppLink(value) {

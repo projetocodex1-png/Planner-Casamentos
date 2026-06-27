@@ -34,7 +34,7 @@ Em Authentication > URL Configuration, configure:
 - Novas contas iniciam com os modulos preenchiveis zerados; somente o checklist vem com tarefas padrao
 - Orcamento em cartoes com categorias padrao dos exemplos, valores sugeridos escalados pelo valor inicial do casal, valor real em moeda e pagamentos pagos consumindo o percentual utilizado
 - Convidados com RSVP (A enviar convite, Pendente, Confirmado, Nao vai), tipo adulto/crianca, grupos e papeis reutilizaveis, colunas personalizadas, importacao CSV, filtros e organizacao por grupo, papel ou status
-- Aba de padrinhos e madrinhas puxando automaticamente convidados com papel de padrinho/madrinha e paletas dos grupos Padrinhos/Madrinhas da identidade visual
+- Aba de padrinhos e madrinhas com manual editavel, convidados puxados por papel de padrinho/madrinha e paletas dos grupos Padrinhos/Madrinhas da identidade visual
 - Importacao de convidados por cabecalhos flexiveis, aceitando CSV com virgula, ponto e virgula ou tab
 - Mesas com mapa visual, arraste de convidados com rolagem automatica, selecao de mesa por clique, nomes soltos no mapa, grupo sem mesa, nomes expansiveis, numero sugerido, area por grupo, titulo opcional e mesas reposicionaveis
 - Musicas por momento da cerimonia/festa, com link da musica e momentos reutilizaveis criados pelo usuario

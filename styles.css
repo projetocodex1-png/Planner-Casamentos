@@ -1282,6 +1282,37 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   gap: 16px;
 }
 
+.wedding-party-manual {
+  display: grid;
+  gap: 14px;
+}
+
+.manual-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.manual-section {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+}
+
+.manual-section h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.manual-section p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .wedding-party-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1416,6 +1447,7 @@ td:last-child { text-align: right; white-space: nowrap; }
   .calendar-grid { min-width: 760px; }
   .payment-calendar { overflow-x: auto; }
   .wedding-party-grid,
+  .manual-section-grid,
   .wedding-party-colors { grid-template-columns: 1fr; }
   .color-card { grid-template-columns: 56px 1fr; }
   .color-preview { width: 50px; height: 50px; }
