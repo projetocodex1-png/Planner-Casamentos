@@ -141,6 +141,14 @@ const moduleConfig = {
     ],
     filters: ["rsvp", "group"]
   },
+  weddingParty: {
+    title: "Padrinhos e Madrinhas",
+    eyebrow: "Corte",
+    layout: "weddingParty",
+    color: "plum",
+    fields: [],
+    filters: []
+  },
   tables: {
     title: "Mesas",
     eyebrow: "Distribuicao",
@@ -243,6 +251,7 @@ const navItems = [
   ["checklist", "Checklist"],
   ["budget", "Orcamento"],
   ["guests", "Convidados"],
+  ["weddingParty", "Padrinhos"],
   ["tables", "Mesas"],
   ["music", "Musicas"],
   ["identity", "Identidade"],
@@ -280,6 +289,7 @@ const seedState = {
     checklist: defaultChecklistTasks(),
     budget: [],
     guests: [],
+    weddingParty: [],
     tables: [],
     music: [],
     identity: [],
@@ -661,12 +671,13 @@ function render() {
 
   const isDashboard = state.currentView === "dashboard";
   const isIdentity = state.currentView === "identity";
+  const isReadOnlyView = ["identity", "weddingParty"].includes(state.currentView);
   els.dashboardView.classList.toggle("active", isDashboard);
   els.moduleView.classList.toggle("active", !isDashboard);
   els.newButton.textContent = isDashboard ? "Nova tarefa" : `Adicionar ${moduleConfig[state.currentView].title}`;
   els.exportButton.textContent = isDashboard ? "Exportar checklist" : "Exportar CSV";
   els.settingsButton.classList.toggle("hidden", !isDashboard);
-  els.newButton.classList.toggle("hidden", isIdentity);
+  els.newButton.classList.toggle("hidden", isReadOnlyView);
 
   if (isDashboard) renderDashboard();
   else renderModule(state.currentView);
@@ -868,6 +879,7 @@ function renderModule(key) {
 function renderModuleContent(key, items) {
   const layout = moduleConfig[key].layout;
   if (key === "guests") return renderGuests(items);
+  if (key === "weddingParty") return renderWeddingParty();
   if (key === "tables") return renderTablePlanner(items);
   if (key === "vendors") return renderVendors(items);
   if (key === "payments") return renderPayments(items);
@@ -1167,6 +1179,96 @@ function renderGuests(items) {
       `).join("")}
     </div>
   `;
+}
+
+function renderWeddingParty() {
+  const godmothers = weddingPartyGuests("Madrinha");
+  const godfathers = weddingPartyGuests("Padrinho");
+  const colors = state.data.identity.filter((item) => item.section === "Paleta de cores");
+  return `
+    <div class="wedding-party-layout">
+      <div class="budget-summary">
+        ${metric("Madrinhas", godmothers.length, "Puxado de Convidados")}
+        ${metric("Padrinhos", godfathers.length, "Puxado de Convidados")}
+        ${metric("Cores vinculadas", colors.filter((item) => ["Madrinhas", "Padrinhos"].includes(item.group)).length, "Puxado da Identidade")}
+      </div>
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Convidados</p>
+            <h3>Madrinhas</h3>
+          </div>
+          <span class="chip plum">${godmothers.length}</span>
+        </div>
+        ${renderWeddingPartyCards(godmothers)}
+      </section>
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Convidados</p>
+            <h3>Padrinhos</h3>
+          </div>
+          <span class="chip teal">${godfathers.length}</span>
+        </div>
+        ${renderWeddingPartyCards(godfathers)}
+      </section>
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Identidade</p>
+            <h3>Paleta das madrinhas</h3>
+          </div>
+        </div>
+        ${renderWeddingPartyPalette(colors, "Madrinhas")}
+      </section>
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Identidade</p>
+            <h3>Paleta dos padrinhos</h3>
+          </div>
+        </div>
+        ${renderWeddingPartyPalette(colors, "Padrinhos")}
+      </section>
+    </div>
+  `;
+}
+
+function weddingPartyGuests(role) {
+  return state.data.guests
+    .filter((guest) => normalizeGuestRole(guest.role) === role && guest.rsvp !== "Não vai")
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR", { sensitivity: "base" }));
+}
+
+function renderWeddingPartyCards(guests) {
+  if (!guests.length) return '<p class="muted-note">Nenhum convidado marcado com este papel.</p>';
+  return `
+    <div class="wedding-party-grid">
+      ${guests.map((guest) => {
+        const table = guest.tableId ? state.data.tables.find((item) => item.id === guest.tableId)?.name : guest.table;
+        return `
+          <article class="wedding-party-card">
+            <div>
+              <h4>${escapeHtml(guest.name)}</h4>
+              <span class="chip ${chipColor(guest.rsvp)}">${escapeHtml(guest.rsvp)}</span>
+            </div>
+            <div class="item-meta">
+              <span><strong>Grupo:</strong> ${escapeHtml(guest.group || "-")}</span>
+              <span><strong>Tipo:</strong> ${escapeHtml(guest.guestType || "Adulto")}</span>
+              ${guest.phone ? `<span><strong>WhatsApp:</strong> ${formatWhatsAppLink(guest.phone)}</span>` : ""}
+              ${table ? `<span><strong>Mesa:</strong> ${escapeHtml(table)}</span>` : ""}
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderWeddingPartyPalette(colors, group) {
+  const groupColors = colors.filter((item) => item.group === group);
+  if (!groupColors.length) return `<p class="muted-note">Nenhuma cor cadastrada para ${escapeHtml(group)}.</p>`;
+  return `<div class="color-card-grid wedding-party-colors">${groupColors.map(renderColorCard).join("")}</div>`;
 }
 
 function renderTablePlanner(tables) {
@@ -2149,6 +2251,10 @@ function normalizeSortValue(value) {
 }
 
 function exportCsv(key) {
+  if (key === "weddingParty") {
+    exportWeddingPartyCsv();
+    return;
+  }
   const items = sortTableItems(key, filteredItems(key));
   const fields = exportFields(key);
   const labels = fields.map(labelForField);
@@ -2159,6 +2265,28 @@ function exportCsv(key) {
   const link = document.createElement("a");
   link.href = url;
   link.download = `${key}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportWeddingPartyCsv() {
+  const rows = [
+    ["Nome", "Papel", "Grupo", "Tipo", "RSVP", "WhatsApp"],
+    ...[...weddingPartyGuests("Madrinha"), ...weddingPartyGuests("Padrinho")].map((guest) => [
+      guest.name || "",
+      guest.role || "",
+      guest.group || "",
+      guest.guestType || "",
+      guest.rsvp || "",
+      guest.phone || ""
+    ])
+  ];
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "padrinhos-madrinhas.csv";
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -2921,6 +3049,7 @@ function progressMetric(label, value, helper, percent, color, target) {
 }
 
 function countFor(key) {
+  if (key === "weddingParty") return weddingPartyGuests("Madrinha").length + weddingPartyGuests("Padrinho").length;
   return key === "dashboard" ? "" : state.data[key]?.length || 0;
 }
 
