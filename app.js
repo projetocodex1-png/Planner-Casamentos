@@ -81,6 +81,12 @@ const WEDDING_PARTY_MANUAL_EXAMPLES = {
 const DEFAULT_WEDDING_PARTY_MANUAL = Object.fromEntries(
   Object.keys(WEDDING_PARTY_MANUAL_EXAMPLES).map((key) => [key, ""])
 );
+const DEFAULT_WEDDING_PARTY_DETAILS = {
+  godmotherDressOptions: [],
+  godfatherLapel: "",
+  godmotherCorsage: ""
+};
+const GODMOTHER_DRESS_OPTIONS = ["Vestido longo", "Vestido curto", "Vestido midi", "Sem brilho", "Sem estampa"];
 
 const DEFAULT_BUDGET_BASE = 80000;
 const DEFAULT_BUDGET_CATEGORIES = [
@@ -294,6 +300,7 @@ const seedState = {
   guestExtraColumns: [],
   musicMoments: DEFAULT_MUSIC_MOMENTS,
   weddingPartyManual: structuredClone(DEFAULT_WEDDING_PARTY_MANUAL),
+  weddingPartyDetails: structuredClone(DEFAULT_WEDDING_PARTY_DETAILS),
   tablePlanner: {
     expandedTables: []
   },
@@ -884,6 +891,12 @@ function renderModule(key) {
   els.moduleView.querySelectorAll("[data-edit-wedding-party-manual]").forEach((button) => {
     button.addEventListener("click", () => openWeddingPartyManualDialog(button.dataset.editWeddingPartyManual));
   });
+  els.moduleView.querySelectorAll("[data-wedding-party-detail]").forEach((input) => {
+    input.addEventListener("change", () => {
+      saveWeddingPartyDetail(input);
+      render();
+    });
+  });
   els.moduleView.querySelectorAll("[data-payment-month]").forEach((button) => {
     button.addEventListener("click", () => {
       state.paymentCalendarMonth = addMonths(paymentCalendarMonth(), Number(button.dataset.paymentMonth));
@@ -1237,25 +1250,8 @@ function renderWeddingParty() {
         </div>
         ${renderWeddingPartyCards(godfathers)}
       </section>
+      ${renderWeddingPartyAttire(colors)}
       ${renderWeddingPartyManual()}
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">Identidade</p>
-            <h3>Paleta das madrinhas</h3>
-          </div>
-        </div>
-        ${renderWeddingPartyPalette(colors, "Madrinhas")}
-      </section>
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">Identidade</p>
-            <h3>Paleta dos padrinhos</h3>
-          </div>
-        </div>
-        ${renderWeddingPartyPalette(colors, "Padrinhos")}
-      </section>
     </div>
   `;
 }
@@ -1332,6 +1328,89 @@ function renderWeddingPartyPalette(colors, group) {
   const groupColors = colors.filter((item) => item.group === group);
   if (!groupColors.length) return `<p class="muted-note">Nenhuma cor cadastrada para ${escapeHtml(group)}.</p>`;
   return `<div class="color-card-grid wedding-party-colors">${groupColors.map(renderColorCard).join("")}</div>`;
+}
+
+function renderWeddingPartyAttire(colors) {
+  const details = normalizeWeddingPartyDetails(state.weddingPartyDetails || {});
+  return `
+    <section class="panel wedding-party-attire">
+      <div class="panel-header">
+        <div>
+          <h3>Traje das madrinhas</h3>
+        </div>
+      </div>
+      <div class="attire-block">
+        <h4>Paleta de cores dos vestidos</h4>
+        ${renderWeddingPartyPalette(colors, "Madrinhas")}
+      </div>
+      <div class="attire-block">
+        <h4>Tipo de vestido e orientações</h4>
+        <div class="option-stack">
+          ${GODMOTHER_DRESS_OPTIONS.map((option) => `
+            <label class="inline-check">
+              <input type="checkbox" data-wedding-party-detail="godmotherDressOptions" value="${escapeHtml(option)}" ${details.godmotherDressOptions.includes(option) ? "checked" : ""}>
+              <span>${escapeHtml(option)}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+      <div class="attire-block">
+        <h4>Corsage / Buquê das madrinhas?</h4>
+        ${renderYesNoOptions("godmotherCorsage", details.godmotherCorsage)}
+      </div>
+    </section>
+    <section class="panel wedding-party-attire">
+      <div class="panel-header">
+        <div>
+          <h3>Traje dos padrinhos</h3>
+        </div>
+      </div>
+      <div class="attire-block">
+        <h4>Paleta de cores do traje</h4>
+        ${renderWeddingPartyPalette(colors, "Padrinhos")}
+      </div>
+      <div class="attire-block">
+        <h4>Lapela dos padrinhos?</h4>
+        ${renderYesNoOptions("godfatherLapel", details.godfatherLapel)}
+      </div>
+    </section>
+  `;
+}
+
+function renderYesNoOptions(field, value) {
+  return `
+    <div class="option-row">
+      ${["Sim", "Não"].map((option) => `
+        <label class="inline-check">
+          <input type="radio" name="${escapeHtml(field)}" data-wedding-party-detail="${escapeHtml(field)}" value="${escapeHtml(option)}" ${value === option ? "checked" : ""}>
+          <span>${escapeHtml(option)}</span>
+        </label>
+      `).join("")}
+    </div>
+  `;
+}
+
+function normalizeWeddingPartyDetails(details = {}) {
+  return {
+    ...structuredClone(DEFAULT_WEDDING_PARTY_DETAILS),
+    ...(details || {}),
+    godmotherDressOptions: Array.isArray(details?.godmotherDressOptions) ? details.godmotherDressOptions : []
+  };
+}
+
+function saveWeddingPartyDetail(input) {
+  const field = input.dataset.weddingPartyDetail;
+  const details = normalizeWeddingPartyDetails(state.weddingPartyDetails || {});
+  if (field === "godmotherDressOptions") {
+    const option = input.value;
+    details.godmotherDressOptions = input.checked
+      ? [...new Set([...details.godmotherDressOptions, option])]
+      : details.godmotherDressOptions.filter((item) => item !== option);
+  } else {
+    details[field] = input.value;
+  }
+  state.weddingPartyDetails = details;
+  saveState();
 }
 
 function openWeddingPartyManualDialog() {
@@ -2918,6 +2997,7 @@ function normalizeState(nextState) {
     ...(nextState.data || {})
   };
   nextState.weddingPartyManual = normalizeWeddingPartyManual(nextState.weddingPartyManual || {});
+  nextState.weddingPartyDetails = normalizeWeddingPartyDetails(nextState.weddingPartyDetails || {});
   if (nextState.wedding) {
     nextState.wedding.coupleType ||= "bride_groom";
     nextState.wedding.date = normalizeWeddingDate(nextState.wedding.date);
