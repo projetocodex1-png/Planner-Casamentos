@@ -215,7 +215,6 @@ const moduleConfig = {
       ["category", "Categoria", "select", true, ["Buffet", "Vestido", "Traje", "Decoracao", "Fotografia", "Filmagem", "Doces", "Transporte", "Maquiagem", "Bar", "Local", "Musica"]],
       ["contact", "Contato", "text", false],
       ["instagramHandle", "Instagram", "text", false],
-      ["instagramUrl", "Link do Instagram", "url", false],
       ["value", "Valor", "number", false],
       ["status", "Status", "select", true, ["Cotando", "Favorito", "Contratado", "Descartado"]],
       ["contract", "Contrato", "select", true, ["Sem contrato", "Recebido", "Assinado", "Pendente"]],
@@ -2229,7 +2228,6 @@ function renderVendorForm(item) {
     <label data-new-vendor-category>Nova categoria<input name="newCategory" value="${escapeHtml(customCategory)}" placeholder="Ex: Celebrante"></label>
     <label>WhatsApp / Contato<input name="contact" value="${escapeHtml(item.contact || "")}" placeholder="(00) 00000-0000"></label>
     <label>Instagram @<input name="instagramHandle" value="${escapeHtml(item.instagramHandle || "")}" placeholder="@nomedapagina"></label>
-    <label>Link do Instagram<input name="instagramUrl" type="url" value="${escapeHtml(item.instagramUrl || "")}" placeholder="https://instagram.com/nomedapagina"></label>
     <label>Valor<input name="value" type="number" min="0" step="100" value="${Number(item.value) || 0}"></label>
     <label>Status
       <select name="status">
@@ -2265,7 +2263,6 @@ function saveVendorItem(form) {
     category,
     contact: form.get("contact") || "",
     instagramHandle: form.get("instagramHandle") || "",
-    instagramUrl: form.get("instagramUrl") || "",
     value: Number(form.get("value")) || 0,
     status: form.get("status") || "Cotando",
     contract: form.get("contract") || "Sem contrato",
