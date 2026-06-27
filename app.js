@@ -265,7 +265,7 @@ const navItems = [
   ["checklist", "Checklist"],
   ["budget", "Orcamento"],
   ["guests", "Convidados"],
-  ["weddingParty", "Padrinhos"],
+  ["weddingParty", "Padrinhos e Madrinhas"],
   ["tables", "Mesas"],
   ["music", "Musicas"],
   ["identity", "Identidade"],
@@ -522,6 +522,10 @@ async function loadCloudState(user) {
     state = normalizeState({
       ...structuredClone(seedState),
       ...data.state,
+      data: {
+        ...structuredClone(seedState).data,
+        ...(data.state.data || {})
+      },
       user
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -2319,7 +2323,7 @@ function updateTableSort(key, field) {
 function filteredItems(key) {
   const filters = state.filters[key] || {};
   const query = (filters.query || "").toLowerCase().trim();
-  return state.data[key].filter((item) => {
+  return (state.data[key] || []).filter((item) => {
     const matchesQuery = !query || Object.values(item).join(" ").toLowerCase().includes(query);
     const matchesFilters = Object.entries(filters).every(([field, value]) => field === "query" || !value || item[field] === value);
     return matchesQuery && matchesFilters;
@@ -2851,6 +2855,10 @@ function findDefaultGuestOption(options, value) {
 }
 
 function normalizeState(nextState) {
+  nextState.data = {
+    ...structuredClone(seedState).data,
+    ...(nextState.data || {})
+  };
   nextState.weddingPartyManual = {
     ...structuredClone(DEFAULT_WEDDING_PARTY_MANUAL),
     ...(nextState.weddingPartyManual || {})
@@ -3153,7 +3161,7 @@ function progressMetric(label, value, helper, percent, color, target) {
 
 function countFor(key) {
   if (key === "weddingParty") return weddingPartyGuests("Madrinha").length + weddingPartyGuests("Padrinho").length;
-  return key === "dashboard" ? "" : state.data[key]?.length || 0;
+  return key === "dashboard" ? "" : (state.data[key] || []).length;
 }
 
 function sum(items, field) {
