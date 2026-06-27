@@ -1482,6 +1482,45 @@ th {
   text-decoration: underline;
 }
 
+.external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f4ece4;
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+  vertical-align: middle;
+}
+
+.external-link svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.external-link.platform-youtube { color: #b42318; background: #fff0ee; border-color: #f4c7c2; }
+.external-link.platform-spotify { color: #187a42; background: #eefaf2; border-color: #bfe8cd; }
+.external-link.platform-soundcloud { color: #a64b17; background: #fff4eb; border-color: #f0c9aa; }
+.external-link.platform-deezer,
+.external-link.platform-apple,
+.external-link.platform-generic { color: var(--teal); background: rgba(40, 124, 116, 0.08); border-color: rgba(40, 124, 116, 0.2); }
+
+.external-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(39, 34, 31, 0.08);
+}
+
 td:last-child { text-align: right; white-space: nowrap; }
 
 .dialog {

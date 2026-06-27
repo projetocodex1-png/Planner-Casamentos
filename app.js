@@ -3667,7 +3667,23 @@ function formatExternalLink(value) {
   const text = String(value || "").trim();
   if (!text) return "";
   const href = /^https?:\/\//i.test(text) ? text : `https://${text}`;
-  return `<a class="whatsapp-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
+  const platform = linkPlatform(href);
+  return `<a class="external-link ${platform.className}" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(text)}">${iconSvg(platform.icon)}<span>${escapeHtml(platform.label)}</span></a>`;
+}
+
+function linkPlatform(href) {
+  let host = "";
+  try {
+    host = new URL(href).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return { label: "Abrir link", icon: "external", className: "platform-generic" };
+  }
+  if (host.includes("youtube.com") || host.includes("youtu.be")) return { label: "YouTube", icon: "youtube", className: "platform-youtube" };
+  if (host.includes("spotify.com")) return { label: "Spotify", icon: "spotify", className: "platform-spotify" };
+  if (host.includes("soundcloud.com")) return { label: "SoundCloud", icon: "music", className: "platform-soundcloud" };
+  if (host.includes("deezer.com")) return { label: "Deezer", icon: "music", className: "platform-deezer" };
+  if (host.includes("music.apple.com")) return { label: "Apple Music", icon: "music", className: "platform-apple" };
+  return { label: "Abrir link", icon: "external", className: "platform-generic" };
 }
 
 function formatMultilineText(value) {
@@ -3692,7 +3708,11 @@ function iconSvg(name) {
   const icons = {
     plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
     edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16v4zM13 7l4 4"/></svg>',
-    trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M8 10v9M12 10v9M16 10v9M6 7l1 14h10l1-14"/></svg>'
+    trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M8 10v9M12 10v9M16 10v9M6 7l1 14h10l1-14"/></svg>',
+    external: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M10 14L19 5M19 14v5H5V5h5"/></svg>',
+    youtube: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5c.2-1.4 1.1-2.3 2.4-2.5C8.4 5.7 12 5.7 12 5.7s3.6 0 5.6.3c1.3.2 2.2 1.1 2.4 2.5.3 1.8.3 3.5.3 3.5s0 1.7-.3 3.5c-.2 1.4-1.1 2.3-2.4 2.5-2 .3-5.6.3-5.6.3s-3.6 0-5.6-.3c-1.3-.2-2.2-1.1-2.4-2.5-.3-1.8-.3-3.5-.3-3.5s0-1.7.3-3.5z"/><path d="M10 9.5v5l4.5-2.5L10 9.5z"/></svg>',
+    spotify: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8 10c2.7-.8 5.6-.5 8 1M8.5 13c2-.6 4.5-.4 6.4.8M9 15.7c1.5-.4 3.2-.3 4.6.5"/></svg>',
+    music: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12M9 18a3 3 0 1 1-2-2.8M19 16a3 3 0 1 1-2-2.8"/></svg>'
   };
   return icons[name] || "";
 }
