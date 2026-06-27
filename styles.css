@@ -1289,7 +1289,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .manual-section-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
@@ -1307,10 +1307,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   font-size: 1rem;
 }
 
+.manual-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .manual-section p {
   margin: 0;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.manual-section .manual-answer {
+  color: var(--ink);
+}
+
+.manual-section .manual-empty {
+  font-style: italic;
 }
 
 .wedding-party-grid {
