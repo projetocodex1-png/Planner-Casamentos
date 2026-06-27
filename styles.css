@@ -1205,10 +1205,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 }
 
 .compact-color-card {
-  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-columns: 52px max-content auto;
   gap: 10px;
   align-items: center;
-  width: min(100%, 430px);
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
   min-height: 78px;
   padding: 10px;
 }
@@ -1386,7 +1388,7 @@ td:last-child { text-align: right; white-space: nowrap; }
   .payment-calendar { overflow-x: auto; }
   .color-card { grid-template-columns: 56px 1fr; }
   .color-preview { width: 50px; height: 50px; }
-  .compact-color-card { grid-template-columns: 46px minmax(0, 1fr) auto; }
+  .compact-color-card { grid-template-columns: 46px max-content auto; }
   .compact-color-card .color-preview { width: 40px; height: 40px; }
   .task-pill { grid-template-columns: 24px 1fr; }
   .task-pill .chip { justify-self: start; grid-column: 2; }
