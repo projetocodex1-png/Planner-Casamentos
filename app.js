@@ -214,6 +214,8 @@ const moduleConfig = {
       ["name", "Fornecedor", "text", true],
       ["category", "Categoria", "select", true, ["Buffet", "Vestido", "Traje", "Decoracao", "Fotografia", "Filmagem", "Doces", "Transporte", "Maquiagem", "Bar", "Local", "Musica"]],
       ["contact", "Contato", "text", false],
+      ["instagramHandle", "Instagram", "text", false],
+      ["instagramUrl", "Link do Instagram", "url", false],
       ["value", "Valor", "number", false],
       ["status", "Status", "select", true, ["Cotando", "Favorito", "Contratado", "Descartado"]],
       ["contract", "Contrato", "select", true, ["Sem contrato", "Recebido", "Assinado", "Pendente"]],
@@ -1183,14 +1185,15 @@ function renderVendors(items) {
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>Nome</th><th>Categoria</th><th>Contato</th><th>Valor</th><th>Status</th><th>Contrato</th><th>Acoes</th></tr>
+                <tr><th>Nome</th><th>Categoria</th><th>Contato</th><th>Instagram</th><th>Valor</th><th>Status</th><th>Contrato</th><th>Acoes</th></tr>
               </thead>
               <tbody>
                 ${groupItems.map((item) => `
                   <tr>
                     <td>${escapeHtml(item.name)}</td>
                     <td>${escapeHtml(item.category)}</td>
-                    <td>${escapeHtml(item.contact)}</td>
+                    <td>${formatVendorContact(item.contact)}</td>
+                    <td>${formatInstagramLink(item.instagramUrl, item.instagramHandle)}</td>
                     <td>${money(item.value)}</td>
                     <td><span class="chip ${chipColor(item.status)}">${escapeHtml(item.status)}</span></td>
                     <td>${escapeHtml(item.contract)}</td>
@@ -2224,7 +2227,9 @@ function renderVendorForm(item) {
       </select>
     </label>
     <label data-new-vendor-category>Nova categoria<input name="newCategory" value="${escapeHtml(customCategory)}" placeholder="Ex: Celebrante"></label>
-    <label>Contato<input name="contact" value="${escapeHtml(item.contact || "")}" placeholder="WhatsApp, e-mail ou telefone"></label>
+    <label>WhatsApp / Contato<input name="contact" value="${escapeHtml(item.contact || "")}" placeholder="(00) 00000-0000"></label>
+    <label>Instagram @<input name="instagramHandle" value="${escapeHtml(item.instagramHandle || "")}" placeholder="@nomedapagina"></label>
+    <label>Link do Instagram<input name="instagramUrl" type="url" value="${escapeHtml(item.instagramUrl || "")}" placeholder="https://instagram.com/nomedapagina"></label>
     <label>Valor<input name="value" type="number" min="0" step="100" value="${Number(item.value) || 0}"></label>
     <label>Status
       <select name="status">
@@ -2259,6 +2264,8 @@ function saveVendorItem(form) {
     name: String(form.get("name") || "").trim(),
     category,
     contact: form.get("contact") || "",
+    instagramHandle: form.get("instagramHandle") || "",
+    instagramUrl: form.get("instagramUrl") || "",
     value: Number(form.get("value")) || 0,
     status: form.get("status") || "Cotando",
     contract: form.get("contract") || "Sem contrato",
@@ -3694,7 +3701,38 @@ function formatWhatsAppLink(value) {
   const text = String(value || "").trim();
   const number = whatsappNumber(text);
   if (!number) return escapeHtml(text);
-  return `<a class="whatsapp-link" href="https://wa.me/${number}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
+  return `<a class="external-link platform-whatsapp" href="https://wa.me/${number}" target="_blank" rel="noopener noreferrer" title="Abrir WhatsApp">${iconSvg("whatsapp")}<span>${escapeHtml(text)}</span></a>`;
+}
+
+function formatVendorContact(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const number = whatsappNumber(text);
+  if (number) return formatWhatsAppLink(text);
+  return escapeHtml(text);
+}
+
+function formatInstagramLink(url, handle) {
+  const rawHandle = String(handle || "").trim();
+  const rawUrl = String(url || "").trim();
+  if (!rawHandle && !rawUrl) return "";
+  const cleanHandle = rawHandle
+    ? rawHandle.replace(/^@+/, "")
+    : instagramHandleFromUrl(rawUrl);
+  const label = cleanHandle ? `@${cleanHandle}` : "Instagram";
+  const href = rawUrl
+    ? (/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`)
+    : `https://instagram.com/${cleanHandle}`;
+  return `<a class="external-link platform-instagram" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(href)}">${iconSvg("instagram")}<span>${escapeHtml(label)}</span></a>`;
+}
+
+function instagramHandleFromUrl(url) {
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+    return parsed.pathname.split("/").filter(Boolean)[0] || "";
+  } catch {
+    return "";
+  }
 }
 
 function whatsappNumber(value) {
@@ -3712,7 +3750,9 @@ function iconSvg(name) {
     external: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M10 14L19 5M19 14v5H5V5h5"/></svg>',
     youtube: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5c.2-1.4 1.1-2.3 2.4-2.5C8.4 5.7 12 5.7 12 5.7s3.6 0 5.6.3c1.3.2 2.2 1.1 2.4 2.5.3 1.8.3 3.5.3 3.5s0 1.7-.3 3.5c-.2 1.4-1.1 2.3-2.4 2.5-2 .3-5.6.3-5.6.3s-3.6 0-5.6-.3c-1.3-.2-2.2-1.1-2.4-2.5-.3-1.8-.3-3.5-.3-3.5s0-1.7.3-3.5z"/><path d="M10 9.5v5l4.5-2.5L10 9.5z"/></svg>',
     spotify: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8 10c2.7-.8 5.6-.5 8 1M8.5 13c2-.6 4.5-.4 6.4.8M9 15.7c1.5-.4 3.2-.3 4.6.5"/></svg>',
-    music: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12M9 18a3 3 0 1 1-2-2.8M19 16a3 3 0 1 1-2-2.8"/></svg>'
+    music: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12M9 18a3 3 0 1 1-2-2.8M19 16a3 3 0 1 1-2-2.8"/></svg>',
+    whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.2 18.4 4 20l.7-2.8a8 8 0 1 1 3 2.5l-1.5-1.3z"/><path d="M9 9.5c.4 2.5 2 4.2 4.6 5l1.4-1.3 2 .6c.1 1.1-.6 2-1.7 2.3-3.8.9-8.2-3.4-7.4-7.3.2-1.1 1.1-1.8 2.2-1.7l.6 2-1.7 1.4z"/></svg>',
+    instagram: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="4"/><circle cx="12" cy="12" r="3"/><path d="M16.5 7.5h.01"/></svg>'
   };
   return icons[name] || "";
 }

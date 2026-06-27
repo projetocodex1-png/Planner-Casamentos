@@ -1512,6 +1512,8 @@ th {
 .external-link.platform-youtube { color: #b42318; background: #fff0ee; border-color: #f4c7c2; }
 .external-link.platform-spotify { color: #187a42; background: #eefaf2; border-color: #bfe8cd; }
 .external-link.platform-soundcloud { color: #a64b17; background: #fff4eb; border-color: #f0c9aa; }
+.external-link.platform-whatsapp { color: #137a4d; background: #edf9f2; border-color: #bfe8cd; }
+.external-link.platform-instagram { color: #9f2f6b; background: #fff0f7; border-color: #f0bdd6; }
 .external-link.platform-deezer,
 .external-link.platform-apple,
 .external-link.platform-generic { color: var(--teal); background: rgba(40, 124, 116, 0.08); border-color: rgba(40, 124, 116, 0.2); }
