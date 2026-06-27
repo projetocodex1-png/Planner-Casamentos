@@ -81,6 +81,10 @@ const WEDDING_PARTY_MANUAL_EXAMPLES = {
 const DEFAULT_WEDDING_PARTY_MANUAL = Object.fromEntries(
   Object.keys(WEDDING_PARTY_MANUAL_EXAMPLES).map((key) => [key, ""])
 );
+const DEFAULT_WEDDING_PARTY_MANUAL_CONFIG = {
+  customFields: [],
+  hiddenFields: []
+};
 const DEFAULT_WEDDING_PARTY_DETAILS = {
   godmotherDressOptions: [],
   godfatherLapel: "",
@@ -300,6 +304,7 @@ const seedState = {
   guestExtraColumns: [],
   musicMoments: DEFAULT_MUSIC_MOMENTS,
   weddingPartyManual: structuredClone(DEFAULT_WEDDING_PARTY_MANUAL),
+  weddingPartyManualConfig: structuredClone(DEFAULT_WEDDING_PARTY_MANUAL_CONFIG),
   weddingPartyDetails: structuredClone(DEFAULT_WEDDING_PARTY_DETAILS),
   tablePlanner: {
     expandedTables: []
@@ -641,6 +646,13 @@ function wireShell() {
       render();
       return;
     }
+    if (key === "weddingPartyManualField") {
+      saveWeddingPartyManualField(form);
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
     if (key === "identity") {
       saveIdentityItem(form);
       els.itemDialog.close();
@@ -890,6 +902,10 @@ function renderModule(key) {
   els.moduleView.querySelector("[data-add-guest-column]")?.addEventListener("click", openGuestColumnDialog);
   els.moduleView.querySelectorAll("[data-edit-wedding-party-manual]").forEach((button) => {
     button.addEventListener("click", () => openWeddingPartyManualDialog(button.dataset.editWeddingPartyManual));
+  });
+  els.moduleView.querySelector("[data-add-wedding-party-manual]")?.addEventListener("click", openWeddingPartyManualFieldDialog);
+  els.moduleView.querySelectorAll("[data-delete-wedding-party-manual]").forEach((button) => {
+    button.addEventListener("click", () => deleteWeddingPartyManualField(button.dataset.deleteWeddingPartyManual));
   });
   els.moduleView.querySelectorAll("[data-wedding-party-detail]").forEach((input) => {
     input.addEventListener("change", () => {
@@ -1509,6 +1525,168 @@ function saveWeddingPartyManual(form) {
     [field]: String(form.get("manualText") || "").trim()
   };
   saveState();
+}
+
+function normalizeWeddingPartyManualConfig(config = {}) {
+  const customFields = Array.isArray(config?.customFields)
+    ? config.customFields
+        .map((field) => ({
+          id: String(field?.id || "").trim(),
+          title: String(field?.title || "").trim(),
+          example: String(field?.example || "").trim()
+        }))
+        .filter((field) => field.id && field.title)
+    : [];
+  const hiddenFields = Array.isArray(config?.hiddenFields)
+    ? [...new Set(config.hiddenFields.map((field) => String(field || "").trim()).filter(Boolean))]
+    : [];
+  return { customFields, hiddenFields };
+}
+
+function weddingPartyManualFields(configSource = state.weddingPartyManualConfig || {}) {
+  const config = normalizeWeddingPartyManualConfig(configSource);
+  const defaultFields = Object.keys(DEFAULT_WEDDING_PARTY_MANUAL).map((name) => [
+    name,
+    weddingPartyManualTitle(name),
+    WEDDING_PARTY_MANUAL_EXAMPLES[name] || "",
+    false
+  ]).filter(([name]) => !config.hiddenFields.includes(name));
+  const customFields = config.customFields.map((field) => [field.id, field.title, field.example, true]);
+  return [...defaultFields, ...customFields];
+}
+
+function weddingPartyManualTitle(name) {
+  const titles = {
+    welcome: "Boas-vindas",
+    weddingInfo: "Informacoes do casamento",
+    godmotherDressCode: "Traje das madrinhas",
+    godfatherDressCode: "Traje dos padrinhos",
+    inspirations: "Inspiracoes visuais",
+    ceremonyEntrance: "Entrada na cerimonia",
+    photos: "Fotos",
+    gifts: "Presentes e contribuicoes",
+    contacts: "Contatos importantes",
+    timeline: "Cronograma resumido",
+    gentleRules: "Regras gentis",
+    closing: "Agradecimento final"
+  };
+  return titles[name] || name;
+}
+
+function normalizeWeddingPartyManual(manual = {}, configSource = state.weddingPartyManualConfig || {}) {
+  const normalized = {};
+  weddingPartyManualFields(configSource).forEach(([name]) => {
+    const value = String(manual?.[name] || "").trim();
+    normalized[name] = value === WEDDING_PARTY_MANUAL_EXAMPLES[name] ? "" : value;
+  });
+  return normalized;
+}
+
+function renderWeddingPartyManual() {
+  const manual = normalizeWeddingPartyManual(state.weddingPartyManual || {});
+  const fields = weddingPartyManualFields();
+  return `
+    <section class="panel wedding-party-manual">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Manual</p>
+          <h3>Guia dos padrinhos e madrinhas</h3>
+        </div>
+        <button class="secondary-action" type="button" data-add-wedding-party-manual>Adicionar campo</button>
+      </div>
+      <div class="manual-section-grid">
+        ${fields.length ? fields.map(([name, title, example, isCustom]) => `
+          <article class="manual-section">
+            <div class="manual-section-header">
+              <h4>${escapeHtml(title)}</h4>
+              <div class="inline-actions">
+                <button class="icon-button icon-only edit action-link" type="button" data-edit-wedding-party-manual="${escapeHtml(name)}" aria-label="Editar ${escapeHtml(title)}">${iconSvg("edit")}</button>
+                <button class="icon-button icon-only danger action-link" type="button" data-delete-wedding-party-manual="${escapeHtml(name)}" aria-label="Excluir ${escapeHtml(title)}">${iconSvg("trash")}</button>
+              </div>
+            </div>
+            <p class="manual-example"><strong>Exemplo:</strong> ${formatMultilineText(example || (isCustom ? "Campo personalizado do manual." : ""))}</p>
+            ${manual[name]
+              ? `<p class="manual-answer">${formatMultilineText(manual[name])}</p>`
+              : '<p class="manual-empty">Campo em branco.</p>'}
+          </article>
+        `).join("") : '<p class="muted-note">Nenhum campo no manual. Adicione um campo para comecar.</p>'}
+      </div>
+    </section>
+  `;
+}
+
+function openWeddingPartyManualDialog(field = "welcome") {
+  const fields = weddingPartyManualFields();
+  const selectedField = fields.some(([name]) => name === field) ? field : fields[0]?.[0];
+  if (!selectedField) return openWeddingPartyManualFieldDialog();
+  const selected = fields.find(([name]) => name === selectedField);
+  const manual = normalizeWeddingPartyManual(state.weddingPartyManual || {});
+  editing = { key: "weddingPartyManual", id: null, field: selectedField };
+  document.querySelector("#itemDialogEyebrow").textContent = "Manual";
+  document.querySelector("#itemDialogTitle").textContent = `Editar ${selected?.[1] || "Manual"}`;
+  els.itemFields.innerHTML = `
+    <p class="muted-note full-field"><strong>Exemplo:</strong> ${formatMultilineText(selected?.[2] || "")}</p>
+    <label class="full-field">Texto<textarea name="manualText" placeholder="Escreva aqui a orientacao desse item.">${escapeHtml(manual[selectedField] || "")}</textarea></label>
+  `;
+  els.itemDialog.showModal();
+}
+
+function openWeddingPartyManualFieldDialog() {
+  editing = { key: "weddingPartyManualField", id: null };
+  document.querySelector("#itemDialogEyebrow").textContent = "Manual";
+  document.querySelector("#itemDialogTitle").textContent = "Adicionar campo";
+  els.itemFields.innerHTML = `
+    <label class="full-field">Titulo<input name="title" placeholder="Ex.: Hospedagem dos padrinhos" required></label>
+    <label class="full-field">Exemplo<textarea name="example" placeholder="Escreva um exemplo para orientar o preenchimento."></textarea></label>
+    <label class="full-field">Texto inicial<textarea name="manualText" placeholder="Opcional. Pode deixar em branco."></textarea></label>
+  `;
+  els.itemDialog.showModal();
+}
+
+function saveWeddingPartyManualField(form) {
+  const title = String(form.get("title") || "").trim();
+  if (!title) return;
+  const config = normalizeWeddingPartyManualConfig(state.weddingPartyManualConfig || {});
+  const id = uniqueManualFieldId(title, config);
+  config.customFields.push({
+    id,
+    title,
+    example: String(form.get("example") || "").trim()
+  });
+  state.weddingPartyManualConfig = config;
+  state.weddingPartyManual = {
+    ...normalizeWeddingPartyManual(state.weddingPartyManual || {}),
+    [id]: String(form.get("manualText") || "").trim()
+  };
+  saveState();
+}
+
+function deleteWeddingPartyManualField(field) {
+  const config = normalizeWeddingPartyManualConfig(state.weddingPartyManualConfig || {});
+  const isCustom = config.customFields.some((item) => item.id === field);
+  if (isCustom) {
+    config.customFields = config.customFields.filter((item) => item.id !== field);
+  } else if (!config.hiddenFields.includes(field)) {
+    config.hiddenFields.push(field);
+  }
+  const manual = { ...(state.weddingPartyManual || {}) };
+  delete manual[field];
+  state.weddingPartyManual = manual;
+  state.weddingPartyManualConfig = config;
+  saveState();
+  render();
+}
+
+function uniqueManualFieldId(title, config) {
+  const base = normalizeHeader(title).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "campo";
+  const existing = new Set([...Object.keys(DEFAULT_WEDDING_PARTY_MANUAL), ...config.customFields.map((field) => field.id)]);
+  let id = `custom-${base}`;
+  let index = 2;
+  while (existing.has(id)) {
+    id = `custom-${base}-${index}`;
+    index += 1;
+  }
+  return id;
 }
 
 function renderTablePlanner(tables) {
@@ -2996,7 +3174,8 @@ function normalizeState(nextState) {
     ...structuredClone(seedState).data,
     ...(nextState.data || {})
   };
-  nextState.weddingPartyManual = normalizeWeddingPartyManual(nextState.weddingPartyManual || {});
+  nextState.weddingPartyManualConfig = normalizeWeddingPartyManualConfig(nextState.weddingPartyManualConfig || {});
+  nextState.weddingPartyManual = normalizeWeddingPartyManual(nextState.weddingPartyManual || {}, nextState.weddingPartyManualConfig);
   nextState.weddingPartyDetails = normalizeWeddingPartyDetails(nextState.weddingPartyDetails || {});
   if (nextState.wedding) {
     nextState.wedding.coupleType ||= "bride_groom";

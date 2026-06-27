@@ -1362,6 +1362,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   gap: 12px;
 }
 
+.inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .manual-section p {
   margin: 0;
   color: var(--muted);
