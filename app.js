@@ -306,6 +306,7 @@ const seedState = {
   musicMoments: DEFAULT_MUSIC_MOMENTS,
   weddingPartyManual: structuredClone(DEFAULT_WEDDING_PARTY_MANUAL),
   weddingPartyManualConfig: structuredClone(DEFAULT_WEDDING_PARTY_MANUAL_CONFIG),
+  weddingPartyManualAttachments: {},
   weddingPartyDetails: structuredClone(DEFAULT_WEDDING_PARTY_DETAILS),
   tablePlanner: {
     expandedTables: []
@@ -908,6 +909,12 @@ function renderModule(key) {
     button.addEventListener("click", () => openWeddingPartyManualDialog(button.dataset.editWeddingPartyManual));
   });
   els.moduleView.querySelector("[data-add-wedding-party-manual]")?.addEventListener("click", openWeddingPartyManualFieldDialog);
+  els.moduleView.querySelectorAll("[data-manual-attachment-input]").forEach((input) => {
+    input.addEventListener("change", () => addWeddingPartyManualAttachments(input.dataset.manualAttachmentInput, input.files));
+  });
+  els.moduleView.querySelectorAll("[data-delete-manual-attachment]").forEach((button) => {
+    button.addEventListener("click", () => deleteWeddingPartyManualAttachment(button.dataset.manualField, button.dataset.deleteManualAttachment));
+  });
   els.moduleView.querySelectorAll("[data-delete-wedding-party-manual]").forEach((button) => {
     button.addEventListener("click", () => deleteWeddingPartyManualField(button.dataset.deleteWeddingPartyManual));
   });
@@ -1733,7 +1740,38 @@ function renderWeddingPartyManualExtras(name, colors) {
       </div>
     `;
   }
+  if (name === "photos") {
+    return renderManualPhotoAttachments(name);
+  }
   return "";
+}
+
+function renderManualPhotoAttachments(field) {
+  const attachments = normalizeManualAttachments(state.weddingPartyManualAttachments || {})[field] || [];
+  return `
+    <div class="manual-extra-block">
+      <div class="manual-extra-header">
+        <h5>Fotos anexadas</h5>
+        <label class="secondary-action attachment-button">
+          Anexar fotos
+          <input class="hidden" type="file" accept="image/*" multiple data-manual-attachment-input="${escapeHtml(field)}">
+        </label>
+      </div>
+      ${attachments.length ? `
+        <div class="manual-attachment-grid">
+          ${attachments.map((attachment) => `
+            <article class="manual-attachment">
+              <img src="${escapeHtml(attachment.dataUrl)}" alt="${escapeHtml(attachment.name || "Foto anexada")}">
+              <div>
+                <span>${escapeHtml(attachment.name || "Foto")}</span>
+                <button class="icon-button icon-only danger action-link" type="button" data-manual-field="${escapeHtml(field)}" data-delete-manual-attachment="${escapeHtml(attachment.id)}" aria-label="Remover foto">${iconSvg("trash")}</button>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      ` : '<p class="muted-note">Nenhuma foto anexada.</p>'}
+    </div>
+  `;
 }
 
 function openWeddingPartyManualDialog(field = "welcome") {
@@ -1794,6 +1832,77 @@ function deleteWeddingPartyManualField(field) {
   delete manual[field];
   state.weddingPartyManual = manual;
   state.weddingPartyManualConfig = config;
+  saveState();
+  render();
+}
+
+function normalizeManualAttachments(attachments = {}) {
+  const normalized = {};
+  Object.entries(attachments || {}).forEach(([field, files]) => {
+    if (!Array.isArray(files)) return;
+    normalized[field] = files
+      .map((file) => ({
+        id: String(file?.id || uid()),
+        name: String(file?.name || "Foto"),
+        dataUrl: String(file?.dataUrl || "")
+      }))
+      .filter((file) => file.dataUrl);
+  });
+  return normalized;
+}
+
+function addWeddingPartyManualAttachments(field, fileList) {
+  const files = Array.from(fileList || []).filter((file) => file.type.startsWith("image/"));
+  if (!files.length) return;
+  Promise.all(files.map(readAttachmentFile)).then((newFiles) => {
+    const attachments = normalizeManualAttachments(state.weddingPartyManualAttachments || {});
+    attachments[field] = [...(attachments[field] || []), ...newFiles];
+    state.weddingPartyManualAttachments = attachments;
+    saveState();
+    render();
+  });
+}
+
+function readAttachmentFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => compressAttachmentImage(String(reader.result || ""), file.name).then(resolve).catch(() => resolve({
+      id: uid(),
+      name: file.name,
+      dataUrl: String(reader.result || "")
+    }));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function compressAttachmentImage(dataUrl, name) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const maxSize = 1200;
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(image, 0, 0, width, height);
+      resolve({
+        id: uid(),
+        name,
+        dataUrl: canvas.toDataURL("image/jpeg", 0.82)
+      });
+    };
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+}
+
+function deleteWeddingPartyManualAttachment(field, attachmentId) {
+  const attachments = normalizeManualAttachments(state.weddingPartyManualAttachments || {});
+  attachments[field] = (attachments[field] || []).filter((attachment) => attachment.id !== attachmentId);
+  state.weddingPartyManualAttachments = attachments;
   saveState();
   render();
 }
@@ -3336,6 +3445,7 @@ function normalizeState(nextState) {
   };
   nextState.weddingPartyManualConfig = normalizeWeddingPartyManualConfig(nextState.weddingPartyManualConfig || {});
   nextState.weddingPartyManual = normalizeWeddingPartyManual(nextState.weddingPartyManual || {}, nextState.weddingPartyManualConfig);
+  nextState.weddingPartyManualAttachments = normalizeManualAttachments(nextState.weddingPartyManualAttachments || {});
   nextState.weddingPartyDetails = normalizeWeddingPartyDetails(nextState.weddingPartyDetails || {});
   if (nextState.wedding) {
     nextState.wedding.coupleType ||= "bride_groom";
