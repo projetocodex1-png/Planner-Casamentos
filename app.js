@@ -88,7 +88,8 @@ const DEFAULT_WEDDING_PARTY_MANUAL_CONFIG = {
 const DEFAULT_WEDDING_PARTY_DETAILS = {
   godmotherDressOptions: [],
   godfatherLapel: "",
-  godmotherCorsage: ""
+  godmotherCorsage: "",
+  calendarMarker: "heart"
 };
 const GODMOTHER_DRESS_OPTIONS = ["Vestido longo", "Vestido curto", "Vestido midi", "Sem brilho", "Sem estampa"];
 
@@ -1705,6 +1706,9 @@ function renderWeddingPartyManual() {
 
 function renderWeddingPartyManualExtras(name, colors) {
   const details = normalizeWeddingPartyDetails(state.weddingPartyDetails || {});
+  if (name === "weddingInfo") {
+    return renderWeddingInfoCalendar(details);
+  }
   if (name === "godmotherDressCode") {
     return `
       <div class="manual-extra-block">
@@ -1744,6 +1748,57 @@ function renderWeddingPartyManualExtras(name, colors) {
     return renderManualPhotoAttachments(name);
   }
   return "";
+}
+
+function renderWeddingInfoCalendar(details) {
+  if (!state.wedding?.date) {
+    return `
+      <div class="manual-extra-block">
+        <h5>Calendário do casamento</h5>
+        <p class="muted-note">Defina a data do casamento nos dados iniciais para mostrar o calendário.</p>
+      </div>
+    `;
+  }
+  const marker = details.calendarMarker === "circle" ? "circle" : "heart";
+  return `
+    <div class="manual-extra-block">
+      <div class="manual-extra-header">
+        <h5>Calendário do casamento</h5>
+        <div class="segmented-control compact-segmented">
+          <label><input type="radio" name="calendarMarker" data-wedding-party-detail="calendarMarker" value="heart" ${marker === "heart" ? "checked" : ""}><span>♥</span></label>
+          <label><input type="radio" name="calendarMarker" data-wedding-party-detail="calendarMarker" value="circle" ${marker === "circle" ? "checked" : ""}><span>○</span></label>
+        </div>
+      </div>
+      ${renderWeddingMiniCalendar(state.wedding.date, marker)}
+    </div>
+  `;
+}
+
+function renderWeddingMiniCalendar(dateValue, marker) {
+  const normalized = normalizeWeddingDate(dateValue);
+  if (!normalized) return '<p class="muted-note">Data do casamento inválida.</p>';
+  const [yearText, monthText, dayText] = normalized.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText) - 1;
+  const day = Number(dayText);
+  const title = new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [
+    ...Array.from({ length: firstWeekday }, () => ""),
+    ...Array.from({ length: daysInMonth }, (_, index) => String(index + 1))
+  ];
+  return `
+    <div class="mini-calendar">
+      <strong>${escapeHtml(title)}</strong>
+      <div class="mini-calendar-weekdays">${["D", "S", "T", "Q", "Q", "S", "S"].map((label) => `<span>${label}</span>`).join("")}</div>
+      <div class="mini-calendar-grid">
+        ${cells.map((cell) => cell
+          ? `<span class="${Number(cell) === day ? `marked ${marker}` : ""}">${Number(cell) === day && marker === "heart" ? "♥" : escapeHtml(cell)}</span>`
+          : "<span></span>").join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderManualPhotoAttachments(field) {

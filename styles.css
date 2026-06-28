@@ -1402,6 +1402,90 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   gap: 10px;
 }
 
+.compact-segmented {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f7f0eb;
+}
+
+.compact-segmented label {
+  display: inline-grid;
+  place-items: center;
+}
+
+.compact-segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.compact-segmented span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.compact-segmented input:checked + span {
+  background: var(--plum);
+  color: #fff;
+}
+
+.mini-calendar {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 320px);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 250, 245, 0.92);
+}
+
+.mini-calendar > strong {
+  text-transform: capitalize;
+}
+
+.mini-calendar-weekdays,
+.mini-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+.mini-calendar-weekdays span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.mini-calendar-grid span {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.mini-calendar-grid span.marked {
+  background: var(--plum);
+  color: #fff;
+}
+
+.mini-calendar-grid span.marked.circle {
+  box-shadow: inset 0 0 0 3px #fff;
+}
+
+.mini-calendar-grid span.marked.heart {
+  font-size: 1.05rem;
+}
+
 .attachment-button {
   display: inline-flex;
   align-items: center;
