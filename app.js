@@ -878,7 +878,10 @@ function renderModule(key) {
   `;
 
   els.moduleView.querySelector("[data-filter-query]").addEventListener("input", (event) => {
-    updateFilter(key, "query", event.target.value);
+    updateFilter(key, "query", event.target.value, {
+      restoreQueryFocus: true,
+      cursor: event.target.selectionStart ?? event.target.value.length
+    });
   });
   els.moduleView.querySelectorAll("[data-filter-field]").forEach((select) => {
     select.addEventListener("change", (event) => updateFilter(key, event.target.dataset.filterField, event.target.value));
@@ -2665,10 +2668,25 @@ function toggleChecklistTask(id) {
   render();
 }
 
-function updateFilter(key, field, value) {
+function updateFilter(key, field, value, options = {}) {
   state.filters[key] = { ...(state.filters[key] || {}), [field]: value };
   saveState();
   renderModule(key);
+  if (options.restoreQueryFocus) {
+    restoreFilterQueryFocus(options.cursor);
+  }
+}
+
+function restoreFilterQueryFocus(cursor) {
+  const input = els.moduleView.querySelector("[data-filter-query]");
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  const position = Math.min(Number(cursor) || input.value.length, input.value.length);
+  try {
+    input.setSelectionRange(position, position);
+  } catch {
+    // Some browsers may not support selection on search inputs.
+  }
 }
 
 function updateTableSort(key, field) {
