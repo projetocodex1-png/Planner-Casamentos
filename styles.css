@@ -1472,6 +1472,19 @@ table {
   color: #235fb0;
 }
 
+.inline-link-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.inline-link-cell .icon-button {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+}
+
 th, td {
   padding: 12px 14px;
   border-bottom: 1px solid var(--line);

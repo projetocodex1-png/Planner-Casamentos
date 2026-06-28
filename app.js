@@ -1282,7 +1282,6 @@ function guestInlineFields() {
     "name",
     "phone",
     "rsvp",
-    "tableId",
     "guestType",
     "group",
     "role",
@@ -1294,9 +1293,9 @@ function guestInlineFields() {
 function renderGuestInlineCell(guest, field) {
   if (field === "rsvp") return renderGuestInlineSelect(guest, field, RSVP_STATUSES, normalizeGuestRsvp(guest.rsvp), chipColor(guest.rsvp));
   if (field === "guestType") return renderGuestInlineSelect(guest, field, ["Adulto", "Crianca"], guest.guestType || "Adulto");
-  if (field === "group") return renderGuestInlineSelect(guest, field, state.guestGroups || DEFAULT_GUEST_GROUPS, guest.group || "Amigos em comum", guest.group === "Familia da noiva" || guest.group === "Amigo da noiva" || guest.group === "Trabalho noiva" ? "rose" : "teal");
+  if (field === "group") return renderGuestInlineSelect(guest, field, state.guestGroups || DEFAULT_GUEST_GROUPS, guest.group || "Amigos em comum", guestGroupTone(guest.group));
   if (field === "role") return renderGuestInlineSelect(guest, field, state.guestRoles || DEFAULT_GUEST_ROLES, guest.role || "Convidado comum");
-  if (field === "tableId") return renderGuestTableSelect(guest);
+  if (field === "phone") return `<div class="inline-link-cell">${guest.phone ? formatWhatsAppLink(guest.phone) : '<span class="muted-note">Sem WhatsApp</span>'}<button class="icon-button icon-only edit action-link" type="button" data-edit="${escapeHtml(guest.id)}" aria-label="Editar WhatsApp">${iconSvg("edit")}</button></div>`;
   if (field.startsWith("extra:")) {
     const id = field.slice(6);
     return renderGuestInlineInput(guest, field, guest.extra?.[id] || "");
@@ -1317,15 +1316,11 @@ function renderGuestInlineSelect(guest, field, options, value, tone = "") {
   `;
 }
 
-function renderGuestTableSelect(guest) {
-  const options = state.data.tables || [];
-  const current = guest.tableId || "";
-  return `
-    <select class="inline-cell-select" data-guest-inline="tableId" data-guest-id="${escapeHtml(guest.id)}">
-      <option value="">Sem mesa</option>
-      ${options.map((table) => `<option value="${escapeHtml(table.id)}" ${current === table.id ? "selected" : ""}>${escapeHtml(table.name)}</option>`).join("")}
-    </select>
-  `;
+function guestGroupTone(group) {
+  const normalized = normalizeHeader(group || "");
+  if (normalized.includes("noiva")) return "rose";
+  if (normalized.includes("noivo")) return "teal";
+  return "";
 }
 
 function renderWeddingParty() {
@@ -2794,16 +2789,6 @@ function updateGuestInlineField(input) {
       };
     }
     if (field === "rsvp") return { ...guest, rsvp: normalizeGuestRsvp(value) };
-    if (field === "tableId") {
-      const table = state.data.tables.find((item) => item.id === value);
-      return {
-        ...guest,
-        tableId: value,
-        table: table?.name || "",
-        looseX: value ? "" : guest.looseX,
-        looseY: value ? "" : guest.looseY
-      };
-    }
     return { ...guest, [field]: value };
   });
   saveState();
