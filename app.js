@@ -926,6 +926,10 @@ function renderModule(key) {
   });
   els.moduleView.querySelectorAll("[data-edit]").forEach((button) => button.addEventListener("click", () => openItemDialog(key, button.dataset.edit)));
   els.moduleView.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", () => deleteItem(key, button.dataset.delete)));
+  els.moduleView.querySelectorAll("[data-guest-inline]").forEach((input) => {
+    const eventName = input.tagName === "SELECT" ? "change" : "blur";
+    input.addEventListener(eventName, () => updateGuestInlineField(input));
+  });
   els.moduleView.querySelectorAll("[data-toggle-task]").forEach((button) => button.addEventListener("click", () => toggleChecklistTask(button.dataset.toggleTask)));
   els.moduleView.querySelectorAll("[data-add-identity-font]").forEach((button) => button.addEventListener("click", () => openIdentityFontDialog()));
   els.moduleView.querySelectorAll("[data-add-identity-group]").forEach((button) => button.addEventListener("click", () => openIdentityGroupDialog()));
@@ -1226,7 +1230,7 @@ function sortVendors(items) {
 function renderGuests(items) {
   if (!items.length) return emptyPanel();
   const groupBy = state.guestView?.groupBy || "none";
-  if (groupBy === "none") return renderTable("guests", items);
+  if (groupBy === "none") return renderGuestInlineTable(items);
   const sorted = sortTableItems("guests", items);
   const groups = [...new Set(sorted.map((item) => item[groupBy] || "Sem classificacao"))]
     .map((group) => [group, sorted.filter((item) => (item[groupBy] || "Sem classificacao") === group)]);
@@ -1240,10 +1244,87 @@ function renderGuests(items) {
             </div>
             <span class="chip rose">${groupItems.length}</span>
           </div>
-          ${renderTable("guests", groupItems)}
+          ${renderGuestInlineTable(groupItems)}
         </section>
       `).join("")}
     </div>
+  `;
+}
+
+function renderGuestInlineTable(items) {
+  const sortedItems = sortTableItems("guests", items);
+  const sort = state.tableSort?.guests || {};
+  const fields = guestInlineFields();
+  return `
+    <div class="table-wrap guest-inline-wrap">
+      <table class="guest-inline-table">
+        <thead><tr>${fields.map((field) => `
+          <th>
+            <button class="table-sort-button ${sort.field === field ? "active" : ""}" type="button" data-sort-field="${field}" aria-label="Ordenar por ${escapeHtml(labelForField(field))}">
+              <span>${escapeHtml(labelForField(field))}</span>
+              <span class="sort-indicator">${sort.field === field ? (sort.direction === "asc" ? "&uarr;" : "&darr;") : ""}</span>
+            </button>
+          </th>
+        `).join("")}<th>Acoes</th></tr></thead>
+        <tbody>${sortedItems.map((guest) => `
+          <tr>
+            ${fields.map((field) => `<td>${renderGuestInlineCell(guest, field)}</td>`).join("")}
+            <td>${actionButtons(guest.id)}</td>
+          </tr>
+        `).join("")}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function guestInlineFields() {
+  return [
+    "name",
+    "phone",
+    "rsvp",
+    "tableId",
+    "guestType",
+    "group",
+    "role",
+    "notes",
+    ...(state.guestExtraColumns || []).map((column) => `extra:${column.id}`)
+  ];
+}
+
+function renderGuestInlineCell(guest, field) {
+  if (field === "rsvp") return renderGuestInlineSelect(guest, field, RSVP_STATUSES, normalizeGuestRsvp(guest.rsvp), chipColor(guest.rsvp));
+  if (field === "guestType") return renderGuestInlineSelect(guest, field, ["Adulto", "Crianca"], guest.guestType || "Adulto");
+  if (field === "group") return renderGuestInlineSelect(guest, field, state.guestGroups || DEFAULT_GUEST_GROUPS, guest.group || "Amigos em comum", guest.group === "Familia da noiva" || guest.group === "Amigo da noiva" || guest.group === "Trabalho noiva" ? "rose" : "teal");
+  if (field === "role") return renderGuestInlineSelect(guest, field, state.guestRoles || DEFAULT_GUEST_ROLES, guest.role || "Convidado comum");
+  if (field === "tableId") return renderGuestTableSelect(guest);
+  if (field.startsWith("extra:")) {
+    const id = field.slice(6);
+    return renderGuestInlineInput(guest, field, guest.extra?.[id] || "");
+  }
+  return renderGuestInlineInput(guest, field, guest[field] || "");
+}
+
+function renderGuestInlineInput(guest, field, value) {
+  const type = field === "phone" ? "tel" : "text";
+  return `<input class="inline-cell-input" type="${type}" value="${escapeHtml(value)}" data-guest-inline="${escapeHtml(field)}" data-guest-id="${escapeHtml(guest.id)}">`;
+}
+
+function renderGuestInlineSelect(guest, field, options, value, tone = "") {
+  return `
+    <select class="inline-cell-select ${tone ? `inline-${tone}` : ""}" data-guest-inline="${escapeHtml(field)}" data-guest-id="${escapeHtml(guest.id)}">
+      ${options.map((option) => `<option value="${escapeHtml(option)}" ${value === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+    </select>
+  `;
+}
+
+function renderGuestTableSelect(guest) {
+  const options = state.data.tables || [];
+  const current = guest.tableId || "";
+  return `
+    <select class="inline-cell-select" data-guest-inline="tableId" data-guest-id="${escapeHtml(guest.id)}">
+      <option value="">Sem mesa</option>
+      ${options.map((table) => `<option value="${escapeHtml(table.id)}" ${current === table.id ? "selected" : ""}>${escapeHtml(table.name)}</option>`).join("")}
+    </select>
   `;
 }
 
@@ -2697,6 +2778,38 @@ function updateTableSort(key, field) {
   renderModule(key);
 }
 
+function updateGuestInlineField(input) {
+  const guestId = input.dataset.guestId;
+  const field = input.dataset.guestInline;
+  const value = input.value;
+  state.data.guests = state.data.guests.map((guest) => {
+    if (guest.id !== guestId) return guest;
+    if (field.startsWith("extra:")) {
+      return {
+        ...guest,
+        extra: {
+          ...(guest.extra || {}),
+          [field.slice(6)]: value
+        }
+      };
+    }
+    if (field === "rsvp") return { ...guest, rsvp: normalizeGuestRsvp(value) };
+    if (field === "tableId") {
+      const table = state.data.tables.find((item) => item.id === value);
+      return {
+        ...guest,
+        tableId: value,
+        table: table?.name || "",
+        looseX: value ? "" : guest.looseX,
+        looseY: value ? "" : guest.looseY
+      };
+    }
+    return { ...guest, [field]: value };
+  });
+  saveState();
+  if (input.tagName === "SELECT") renderModule("guests");
+}
+
 function filteredItems(key) {
   const filters = state.filters[key] || {};
   const query = (filters.query || "").toLowerCase().trim();
@@ -3806,8 +3919,9 @@ function labelForField(field) {
     group: "Grupo",
     role: "Papel",
     guestType: "Tipo",
-    rsvp: "RSVP",
+    rsvp: "Confirmacao",
     table: "Mesa",
+    tableId: "Mesa",
     phone: "WhatsApp",
     capacity: "Capacidade",
     area: "Area",
