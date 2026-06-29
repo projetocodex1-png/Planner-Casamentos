@@ -1680,7 +1680,7 @@ function weddingPartyManualTitle(name) {
     godfatherDressCode: "Traje dos padrinhos",
     inspirations: "Inspiracoes visuais",
     ceremonyEntrance: "Entrada na cerimonia",
-    photos: "Fotos",
+    photos: "Momento das fotos",
     gifts: "Presentes e contribuicoes",
     contacts: "Contatos importantes",
     timeline: "Cronograma resumido",
@@ -1774,7 +1774,7 @@ function renderWeddingPartyManualExtras(name, colors) {
       </div>
     `;
   }
-  if (name === "photos") {
+  if (name === "inspirations") {
     return renderManualPhotoAttachments(name);
   }
   return "";
@@ -1836,7 +1836,7 @@ function renderManualPhotoAttachments(field) {
   return `
     <div class="manual-extra-block">
       <div class="manual-extra-header">
-        <h5>Fotos anexadas</h5>
+        <h5>Imagens de inspiraÃ§Ã£o</h5>
         <label class="secondary-action attachment-button">
           Anexar fotos
           <input class="hidden" type="file" accept="image/*" multiple data-manual-attachment-input="${escapeHtml(field)}">
@@ -2055,29 +2055,69 @@ function renderManualPreview(design, template) {
   const roleTitle = design.guideType === "godfathers" ? "Padrinhos" : "Madrinhas";
   const paletteGroup = design.guideType === "godfathers" ? "Padrinhos" : "Madrinhas";
   const colors = state.data.identity.filter((item) => item.section === "Paleta de cores" && item.group === paletteGroup);
+  const fields = weddingPartyManualFields();
   const style = `--manual-bg:${escapeHtml(design.backgroundColor)};--manual-title:${escapeHtml(design.titleColor)};--manual-accent:${escapeHtml(design.accentColor)};--manual-detail:${escapeHtml(design.detailColor)};`;
   return `
     <article class="manual-print-preview template-${escapeHtml(template.style)}" style="${style}">
-      <section class="manual-cover-panel">
-        <span class="manual-ornament">${template.style === "beach" ? "mar" : template.style === "modern" ? "PC" : "flor"}</span>
+      <section class="manual-print-page manual-cover-panel">
+        <span class="manual-ornament">${manualTemplateOrnament(template.style)}</span>
         <h2>${escapeHtml(guideTitle)}</h2>
         <p>${escapeHtml(state.wedding?.couple || "Nosso casamento")}</p>
         <strong>${escapeHtml(formatDate(state.wedding?.date) || "Data do casamento")}</strong>
       </section>
-      ${template.blocks.map((block) => renderManualPreviewPanel(block, { manual, roleTitle, colors, design })).join("")}
+      <section class="manual-print-page manual-content-panel">
+        <div class="manual-content-header">
+          <span class="manual-ornament small">${manualTemplateOrnament(template.style)}</span>
+          <div>
+            <h3>${escapeHtml(roleTitle)}</h3>
+            <p>${escapeHtml(state.wedding?.couple || "Nosso casamento")}</p>
+          </div>
+        </div>
+        <div class="manual-content-columns">
+          ${fields.map(([name, title, example]) => renderManualPreviewField(name, title, example, { manual, colors, design })).join("")}
+        </div>
+      </section>
     </article>
   `;
 }
 
-function renderManualPreviewPanel(block, context) {
-  const { manual, roleTitle, colors, design } = context;
-  if (block === "calendar") return `<section>${renderPreviewTitle("Save the date")}<div class="manual-preview-calendar">${renderWeddingMiniCalendar(state.wedding?.date, "heart")}</div></section>`;
-  if (block === "info") return `<section>${renderPreviewTitle("Informações")}<p>${formatMultilineText(manual.weddingInfo || "Data, horário, local da cerimônia e ponto de encontro.")}</p></section>`;
-  if (block === "palette") return `<section>${renderPreviewTitle(roleTitle)}<p>${formatMultilineText(manual[design.guideType === "godfathers" ? "godfatherDressCode" : "godmotherDressCode"] || "Orientações de traje e paleta.")}</p><div class="manual-preview-swatches">${colors.slice(0, 6).map((item) => `<span style="background:${escapeHtml(item.color || item.colorHex || "#f3e8e0")}"></span>`).join("") || "<span></span><span></span><span></span>"}</div></section>`;
-  if (block === "timeline") return `<section>${renderPreviewTitle("Cronograma")}<p>${formatMultilineText(manual.timeline || WEDDING_PARTY_MANUAL_EXAMPLES.timeline)}</p></section>`;
-  if (block === "rules") return `<section>${renderPreviewTitle("Combinados")}<p>${formatMultilineText(manual.gentleRules || "Chegar no horário, respeitar a paleta e curtir o dia com leveza.")}</p></section>`;
-  if (block === "thanks") return `<section>${renderPreviewTitle("Obrigado!")}<p>${formatMultilineText(manual.closing || "Amamos ter você pertinho nesse dia tão especial.")}</p></section>`;
-  return `<section>${renderPreviewTitle("Mensagem")}<p>${formatMultilineText(manual.welcome || WEDDING_PARTY_MANUAL_EXAMPLES.welcome)}</p></section>`;
+function renderManualPreviewField(name, title, example, context) {
+  const { manual, colors, design } = context;
+  const text = manual[name] || example || "";
+  return `
+    <div class="manual-preview-field">
+      ${renderPreviewTitle(title)}
+      <p>${formatMultilineText(text || "Campo em branco.")}</p>
+      ${name === "weddingInfo" ? `<div class="manual-preview-calendar">${renderWeddingMiniCalendar(state.wedding?.date, normalizeWeddingPartyDetails(state.weddingPartyDetails || {}).calendarMarker)}</div>` : ""}
+      ${name === "inspirations" ? renderManualPreviewAttachments("inspirations") : ""}
+      ${name === (design.guideType === "godfathers" ? "godfatherDressCode" : "godmotherDressCode") ? renderManualPreviewPalette(colors) : ""}
+    </div>
+  `;
+}
+
+function renderManualPreviewPalette(colors) {
+  return `<div class="manual-preview-swatches">${colors.slice(0, 6).map((item) => `<span style="background:${escapeHtml(item.color || item.colorHex || "#f3e8e0")}"></span>`).join("") || "<span></span><span></span><span></span>"}</div>`;
+}
+
+function renderManualPreviewAttachments(field) {
+  const attachments = normalizeManualAttachments(state.weddingPartyManualAttachments || {})[field] || [];
+  if (!attachments.length) return "";
+  return `
+    <div class="manual-preview-attachments">
+      ${attachments.slice(0, 4).map((attachment) => `<img src="${escapeHtml(attachment.dataUrl)}" alt="${escapeHtml(attachment.name || "Inspiração")}">`).join("")}
+    </div>
+  `;
+}
+
+function manualTemplateOrnament(style) {
+  const ornaments = {
+    beach: "&#8767;",
+    modern: "&#9670;",
+    romantic: "&#9829;",
+    minimal: "&#9671;",
+    floral: "&#10048;"
+  };
+  return ornaments[style] || ornaments.floral;
 }
 
 function renderPreviewTitle(title) {
@@ -3640,6 +3680,9 @@ function normalizeState(nextState) {
   nextState.weddingPartyManualConfig = normalizeWeddingPartyManualConfig(nextState.weddingPartyManualConfig || {});
   nextState.weddingPartyManual = normalizeWeddingPartyManual(nextState.weddingPartyManual || {}, nextState.weddingPartyManualConfig);
   nextState.weddingPartyManualAttachments = normalizeManualAttachments(nextState.weddingPartyManualAttachments || {});
+  if (nextState.weddingPartyManualAttachments.photos?.length && !nextState.weddingPartyManualAttachments.inspirations?.length) {
+    nextState.weddingPartyManualAttachments.inspirations = nextState.weddingPartyManualAttachments.photos;
+  }
   nextState.weddingPartyDetails = normalizeWeddingPartyDetails(nextState.weddingPartyDetails || {});
   nextState.manualDesign = normalizeManualDesign(nextState.manualDesign || {});
   if (nextState.wedding) {
