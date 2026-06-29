@@ -1465,6 +1465,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 }
 
 .mini-calendar-grid span {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
@@ -1483,7 +1484,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 }
 
 .mini-calendar-grid span.marked.heart {
-  font-size: 1.05rem;
+  font-size: 1rem;
+}
+
+.mini-calendar-grid .date-number {
+  position: relative;
+  z-index: 1;
+}
+
+.mini-calendar-grid .date-heart {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.62rem;
+  line-height: 1;
 }
 
 .attachment-button {

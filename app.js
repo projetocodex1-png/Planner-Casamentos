@@ -1794,7 +1794,7 @@ function renderWeddingMiniCalendar(dateValue, marker) {
       <div class="mini-calendar-weekdays">${["D", "S", "T", "Q", "Q", "S", "S"].map((label) => `<span>${label}</span>`).join("")}</div>
       <div class="mini-calendar-grid">
         ${cells.map((cell) => cell
-          ? `<span class="${Number(cell) === day ? `marked ${marker}` : ""}">${Number(cell) === day && marker === "heart" ? "♥" : escapeHtml(cell)}</span>`
+          ? `<span class="${Number(cell) === day ? `marked ${marker}` : ""}"><span class="date-number">${escapeHtml(cell)}</span>${Number(cell) === day && marker === "heart" ? '<span class="date-heart">♥</span>' : ""}</span>`
           : "<span></span>").join("")}
       </div>
     </div>
