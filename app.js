@@ -1591,7 +1591,7 @@ function normalizeWeddingPartyManual(manual = {}) {
   const normalized = structuredClone(DEFAULT_WEDDING_PARTY_MANUAL);
   weddingPartyManualFields().forEach(([name]) => {
     const value = String(manual?.[name] || "").trim();
-    normalized[name] = value === WEDDING_PARTY_MANUAL_EXAMPLES[name] ? "" : value;
+    normalized[name] = value;
   });
   return normalized;
 }
@@ -1697,7 +1697,7 @@ function normalizeWeddingPartyManual(manual = {}, configSource = state.weddingPa
   const normalized = {};
   weddingPartyManualFields(configSource).forEach(([name]) => {
     const value = String(manual?.[name] || "").trim();
-    normalized[name] = value === WEDDING_PARTY_MANUAL_EXAMPLES[name] ? "" : value;
+    normalized[name] = value;
   });
   return normalized;
 }
