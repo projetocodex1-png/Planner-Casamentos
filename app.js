@@ -1836,7 +1836,7 @@ function renderManualPhotoAttachments(field) {
   return `
     <div class="manual-extra-block">
       <div class="manual-extra-header">
-        <h5>Imagens de inspiraÃ§Ã£o</h5>
+        <h5>Imagens de Inspiracao</h5>
         <label class="secondary-action attachment-button">
           Anexar fotos
           <input class="hidden" type="file" accept="image/*" multiple data-manual-attachment-input="${escapeHtml(field)}">
@@ -2054,15 +2054,17 @@ function renderManualPreview(design, template) {
   const guideTitle = design.guideType === "godfathers" ? "Guia dos Padrinhos" : "Guia das Madrinhas";
   const roleTitle = design.guideType === "godfathers" ? "Padrinhos" : "Madrinhas";
   const paletteGroup = design.guideType === "godfathers" ? "Padrinhos" : "Madrinhas";
+  const oppositeDressField = design.guideType === "godfathers" ? "godmotherDressCode" : "godfatherDressCode";
   const colors = state.data.identity.filter((item) => item.section === "Paleta de cores" && item.group === paletteGroup);
-  const fields = weddingPartyManualFields();
+  const fields = weddingPartyManualFields().filter(([name]) => name !== oppositeDressField);
+  const coupleName = manualCoupleName();
   const style = `--manual-bg:${escapeHtml(design.backgroundColor)};--manual-title:${escapeHtml(design.titleColor)};--manual-accent:${escapeHtml(design.accentColor)};--manual-detail:${escapeHtml(design.detailColor)};`;
   return `
     <article class="manual-print-preview template-${escapeHtml(template.style)}" style="${style}">
       <section class="manual-print-page manual-cover-panel">
         <span class="manual-ornament">${manualTemplateOrnament(template.style)}</span>
         <h2>${escapeHtml(guideTitle)}</h2>
-        <p>${escapeHtml(state.wedding?.couple || "Nosso casamento")}</p>
+        <p>${escapeHtml(coupleName)}</p>
         <strong>${escapeHtml(formatDate(state.wedding?.date) || "Data do casamento")}</strong>
       </section>
       <section class="manual-print-page manual-content-panel">
@@ -2070,7 +2072,7 @@ function renderManualPreview(design, template) {
           <span class="manual-ornament small">${manualTemplateOrnament(template.style)}</span>
           <div>
             <h3>${escapeHtml(roleTitle)}</h3>
-            <p>${escapeHtml(state.wedding?.couple || "Nosso casamento")}</p>
+            <p>${escapeHtml(coupleName)}</p>
           </div>
         </div>
         <div class="manual-content-columns">
@@ -2095,6 +2097,13 @@ function renderManualPreviewField(name, title, example, context) {
   `;
 }
 
+function manualCoupleName() {
+  const first = String(state.wedding?.partnerOne || "").trim();
+  const second = String(state.wedding?.partnerTwo || "").trim();
+  if (first && second) return `${first} & ${second}`;
+  return String(state.wedding?.couple || "Nosso casamento").replace(/\s+e\s+/i, " & ");
+}
+
 function renderManualPreviewPalette(colors) {
   return `<div class="manual-preview-swatches">${colors.slice(0, 6).map((item) => `<span style="background:${escapeHtml(item.color || item.colorHex || "#f3e8e0")}"></span>`).join("") || "<span></span><span></span><span></span>"}</div>`;
 }
@@ -2104,7 +2113,7 @@ function renderManualPreviewAttachments(field) {
   if (!attachments.length) return "";
   return `
     <div class="manual-preview-attachments">
-      ${attachments.slice(0, 4).map((attachment) => `<img src="${escapeHtml(attachment.dataUrl)}" alt="${escapeHtml(attachment.name || "Inspiração")}">`).join("")}
+      ${attachments.slice(0, 4).map((attachment) => `<img src="${escapeHtml(attachment.dataUrl)}" alt="${escapeHtml(attachment.name || "Inspiracao")}">`).join("")}
     </div>
   `;
 }
@@ -2138,7 +2147,22 @@ function updateManualDesignValue(field, value) {
 }
 
 function exportManualPdf() {
+  document.querySelector("#manualPrintRoot")?.remove();
+  const preview = document.querySelector(".manual-print-preview");
+  if (!preview) return window.print();
+  const printRoot = document.createElement("div");
+  printRoot.id = "manualPrintRoot";
+  printRoot.append(preview.cloneNode(true));
+  document.body.append(printRoot);
+  document.body.classList.add("manual-printing");
+  const cleanup = () => {
+    document.body.classList.remove("manual-printing");
+    printRoot.remove();
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
   window.print();
+  window.setTimeout(cleanup, 800);
 }
 
 function uniqueManualFieldId(title, config) {
