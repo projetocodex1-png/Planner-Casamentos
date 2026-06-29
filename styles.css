@@ -1546,6 +1546,172 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   white-space: nowrap;
 }
 
+.manual-designer {
+  display: grid;
+  gap: 16px;
+}
+
+.manual-designer-tools {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.manual-designer-tools label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.manual-designer-tools input[type="color"] {
+  min-height: 42px;
+  padding: 4px;
+}
+
+.manual-template-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.manual-template-chip {
+  display: grid;
+  gap: 3px;
+  min-width: 148px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  text-align: left;
+}
+
+.manual-template-chip.active {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(40, 124, 116, 0.12);
+}
+
+.manual-template-chip span {
+  font-weight: 900;
+}
+
+.manual-template-chip small {
+  color: var(--muted);
+}
+
+.manual-preview-shell {
+  overflow-x: auto;
+}
+
+.manual-print-preview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  min-width: 860px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--manual-bg);
+  color: var(--manual-title);
+  box-shadow: var(--shadow);
+}
+
+.manual-print-preview section {
+  min-height: 420px;
+  padding: 26px 22px;
+  border-right: 1px solid rgba(39, 34, 31, 0.15);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--manual-accent) 10%, transparent), transparent 45%),
+    var(--manual-bg);
+}
+
+.manual-print-preview section:last-child {
+  border-right: 0;
+}
+
+.manual-cover-panel {
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.manual-cover-panel h2,
+.manual-print-preview h3 {
+  margin: 0;
+  color: var(--manual-title);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.manual-cover-panel h2 {
+  font-size: 2rem;
+}
+
+.manual-print-preview h3 {
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+}
+
+.manual-print-preview p {
+  color: color-mix(in srgb, var(--manual-title) 72%, #756c66);
+  line-height: 1.55;
+}
+
+.manual-ornament {
+  display: inline-grid;
+  place-items: center;
+  justify-self: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--manual-accent) 18%, #fff);
+  color: var(--manual-accent);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.manual-preview-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.manual-preview-swatches span {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(39, 34, 31, 0.16);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--manual-accent) 28%, #fff);
+}
+
+.manual-preview-calendar .mini-calendar {
+  width: 100%;
+  box-shadow: none;
+}
+
+.template-minimal section {
+  background: var(--manual-bg);
+}
+
+.template-romantic section {
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--manual-accent) 24%, transparent), transparent 36%),
+    var(--manual-bg);
+}
+
+.template-beach section {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--manual-accent) 16%, #fff) 0%, var(--manual-bg) 58%);
+}
+
+.template-modern section {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--manual-accent) 16%, transparent) 0 10px, transparent 10px),
+    var(--manual-bg);
+}
+
 .wedding-party-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1774,7 +1940,8 @@ td:last-child { text-align: right; white-space: nowrap; }
   .payment-calendar { overflow-x: auto; }
   .wedding-party-grid,
   .manual-section-grid,
-  .wedding-party-colors { grid-template-columns: 1fr; }
+  .wedding-party-colors,
+  .manual-designer-tools { grid-template-columns: 1fr; }
   .color-card { grid-template-columns: 56px 1fr; }
   .color-preview { width: 50px; height: 50px; }
   .compact-color-card { grid-template-columns: 46px max-content auto; }
@@ -1782,4 +1949,41 @@ td:last-child { text-align: right; white-space: nowrap; }
   .task-pill { grid-template-columns: 24px 1fr; }
   .task-pill .chip { justify-self: start; grid-column: 2; }
   h1 { max-width: 11ch; font-size: 3rem; }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .manual-print-preview,
+  .manual-print-preview * {
+    visibility: visible;
+  }
+
+  .manual-print-preview {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    grid-template-columns: repeat(4, 1fr);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .manual-print-preview section {
+    min-height: 100vh;
+  }
 }

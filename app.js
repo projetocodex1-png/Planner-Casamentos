@@ -92,6 +92,26 @@ const DEFAULT_WEDDING_PARTY_DETAILS = {
   calendarMarker: "heart"
 };
 const GODMOTHER_DRESS_OPTIONS = ["Vestido longo", "Vestido curto", "Vestido midi", "Sem brilho", "Sem estampa"];
+const MANUAL_DESIGN_TEMPLATES = [
+  ["classicFloralA", "Clássico floral 1", "Clássico floral", "floral", ["calendar", "info", "palette"]],
+  ["classicFloralB", "Clássico floral 2", "Clássico floral", "floral", ["info", "palette", "thanks"]],
+  ["minimalA", "Elegante minimalista 1", "Elegante minimalista", "minimal", ["cover", "info", "rules"]],
+  ["minimalB", "Elegante minimalista 2", "Elegante minimalista", "minimal", ["info", "cover", "palette"]],
+  ["romanticA", "Romântico 1", "Romântico", "romantic", ["cover", "palette", "thanks"]],
+  ["romanticB", "Romântico 2", "Romântico", "romantic", ["calendar", "palette", "rules"]],
+  ["beachA", "Praia 1", "Praia", "beach", ["cover", "info", "timeline"]],
+  ["beachB", "Praia 2", "Praia", "beach", ["calendar", "timeline", "thanks"]],
+  ["modernA", "Moderno 1", "Moderno", "modern", ["info", "palette", "timeline"]],
+  ["modernB", "Moderno 2", "Moderno", "modern", ["cover", "rules", "thanks"]]
+].map(([id, name, category, style, blocks]) => ({ id, name, category, style, blocks }));
+const DEFAULT_MANUAL_DESIGN = {
+  guideType: "godmothers",
+  templateId: "classicFloralA",
+  backgroundColor: "#fffaf5",
+  accentColor: "#7a3f5c",
+  titleColor: "#2b2420",
+  detailColor: "#d8b4a6"
+};
 
 const DEFAULT_BUDGET_BASE = 80000;
 const DEFAULT_BUDGET_CATEGORIES = [
@@ -309,6 +329,7 @@ const seedState = {
   weddingPartyManualConfig: structuredClone(DEFAULT_WEDDING_PARTY_MANUAL_CONFIG),
   weddingPartyManualAttachments: {},
   weddingPartyDetails: structuredClone(DEFAULT_WEDDING_PARTY_DETAILS),
+  manualDesign: structuredClone(DEFAULT_MANUAL_DESIGN),
   tablePlanner: {
     expandedTables: []
   },
@@ -925,6 +946,14 @@ function renderModule(key) {
       render();
     });
   });
+  els.moduleView.querySelectorAll("[data-manual-design]").forEach((input) => {
+    input.addEventListener("input", () => updateManualDesign(input));
+    input.addEventListener("change", () => updateManualDesign(input));
+  });
+  els.moduleView.querySelectorAll("[data-manual-template]").forEach((button) => {
+    button.addEventListener("click", () => updateManualDesignValue("templateId", button.dataset.manualTemplate));
+  });
+  els.moduleView.querySelector("[data-export-manual-pdf]")?.addEventListener("click", exportManualPdf);
   els.moduleView.querySelectorAll("[data-payment-month]").forEach((button) => {
     button.addEventListener("click", () => {
       state.paymentCalendarMonth = addMonths(paymentCalendarMonth(), Number(button.dataset.paymentMonth));
@@ -1355,6 +1384,7 @@ function renderWeddingParty() {
         ${renderWeddingPartyCards(godfathers)}
       </section>
       ${renderWeddingPartyManual()}
+      ${renderManualDesigner()}
     </div>
   `;
 }
@@ -1960,6 +1990,115 @@ function deleteWeddingPartyManualAttachment(field, attachmentId) {
   state.weddingPartyManualAttachments = attachments;
   saveState();
   render();
+}
+
+function normalizeManualDesign(design = {}) {
+  const next = {
+    ...structuredClone(DEFAULT_MANUAL_DESIGN),
+    ...(design || {})
+  };
+  if (!MANUAL_DESIGN_TEMPLATES.some((template) => template.id === next.templateId)) next.templateId = DEFAULT_MANUAL_DESIGN.templateId;
+  if (!["godmothers", "godfathers"].includes(next.guideType)) next.guideType = DEFAULT_MANUAL_DESIGN.guideType;
+  return next;
+}
+
+function renderManualDesigner() {
+  const design = normalizeManualDesign(state.manualDesign || {});
+  const template = manualTemplate(design.templateId);
+  return `
+    <section class="panel manual-designer" data-manual-designer>
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Manual PDF</p>
+          <h3>Editor visual do guia</h3>
+        </div>
+        <button class="primary-action" type="button" data-export-manual-pdf>Exportar PDF</button>
+      </div>
+      <div class="manual-designer-tools">
+        <label>Guia
+          <select data-manual-design="guideType">
+            <option value="godmothers" ${design.guideType === "godmothers" ? "selected" : ""}>Guia das madrinhas</option>
+            <option value="godfathers" ${design.guideType === "godfathers" ? "selected" : ""}>Guia dos padrinhos</option>
+          </select>
+        </label>
+        <label>Modelo
+          <select data-manual-design="templateId">
+            ${MANUAL_DESIGN_TEMPLATES.map((item) => `<option value="${escapeHtml(item.id)}" ${design.templateId === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Fundo<input type="color" value="${escapeHtml(design.backgroundColor)}" data-manual-design="backgroundColor"></label>
+        <label>Títulos<input type="color" value="${escapeHtml(design.titleColor)}" data-manual-design="titleColor"></label>
+        <label>Detalhes<input type="color" value="${escapeHtml(design.accentColor)}" data-manual-design="accentColor"></label>
+      </div>
+      <div class="manual-template-list">
+        ${MANUAL_DESIGN_TEMPLATES.map((item) => `
+          <button class="manual-template-chip ${item.id === design.templateId ? "active" : ""}" type="button" data-manual-template="${escapeHtml(item.id)}">
+            <span>${escapeHtml(item.name)}</span>
+            <small>${escapeHtml(item.category)}</small>
+          </button>
+        `).join("")}
+      </div>
+      <div class="manual-preview-shell">
+        ${renderManualPreview(design, template)}
+      </div>
+    </section>
+  `;
+}
+
+function manualTemplate(id) {
+  return MANUAL_DESIGN_TEMPLATES.find((template) => template.id === id) || MANUAL_DESIGN_TEMPLATES[0];
+}
+
+function renderManualPreview(design, template) {
+  const manual = normalizeWeddingPartyManual(state.weddingPartyManual || {});
+  const guideTitle = design.guideType === "godfathers" ? "Guia dos Padrinhos" : "Guia das Madrinhas";
+  const roleTitle = design.guideType === "godfathers" ? "Padrinhos" : "Madrinhas";
+  const paletteGroup = design.guideType === "godfathers" ? "Padrinhos" : "Madrinhas";
+  const colors = state.data.identity.filter((item) => item.section === "Paleta de cores" && item.group === paletteGroup);
+  const style = `--manual-bg:${escapeHtml(design.backgroundColor)};--manual-title:${escapeHtml(design.titleColor)};--manual-accent:${escapeHtml(design.accentColor)};--manual-detail:${escapeHtml(design.detailColor)};`;
+  return `
+    <article class="manual-print-preview template-${escapeHtml(template.style)}" style="${style}">
+      <section class="manual-cover-panel">
+        <span class="manual-ornament">${template.style === "beach" ? "mar" : template.style === "modern" ? "PC" : "flor"}</span>
+        <h2>${escapeHtml(guideTitle)}</h2>
+        <p>${escapeHtml(state.wedding?.couple || "Nosso casamento")}</p>
+        <strong>${escapeHtml(formatDate(state.wedding?.date) || "Data do casamento")}</strong>
+      </section>
+      ${template.blocks.map((block) => renderManualPreviewPanel(block, { manual, roleTitle, colors, design })).join("")}
+    </article>
+  `;
+}
+
+function renderManualPreviewPanel(block, context) {
+  const { manual, roleTitle, colors, design } = context;
+  if (block === "calendar") return `<section>${renderPreviewTitle("Save the date")}<div class="manual-preview-calendar">${renderWeddingMiniCalendar(state.wedding?.date, "heart")}</div></section>`;
+  if (block === "info") return `<section>${renderPreviewTitle("Informações")}<p>${formatMultilineText(manual.weddingInfo || "Data, horário, local da cerimônia e ponto de encontro.")}</p></section>`;
+  if (block === "palette") return `<section>${renderPreviewTitle(roleTitle)}<p>${formatMultilineText(manual[design.guideType === "godfathers" ? "godfatherDressCode" : "godmotherDressCode"] || "Orientações de traje e paleta.")}</p><div class="manual-preview-swatches">${colors.slice(0, 6).map((item) => `<span style="background:${escapeHtml(item.color || item.colorHex || "#f3e8e0")}"></span>`).join("") || "<span></span><span></span><span></span>"}</div></section>`;
+  if (block === "timeline") return `<section>${renderPreviewTitle("Cronograma")}<p>${formatMultilineText(manual.timeline || WEDDING_PARTY_MANUAL_EXAMPLES.timeline)}</p></section>`;
+  if (block === "rules") return `<section>${renderPreviewTitle("Combinados")}<p>${formatMultilineText(manual.gentleRules || "Chegar no horário, respeitar a paleta e curtir o dia com leveza.")}</p></section>`;
+  if (block === "thanks") return `<section>${renderPreviewTitle("Obrigado!")}<p>${formatMultilineText(manual.closing || "Amamos ter você pertinho nesse dia tão especial.")}</p></section>`;
+  return `<section>${renderPreviewTitle("Mensagem")}<p>${formatMultilineText(manual.welcome || WEDDING_PARTY_MANUAL_EXAMPLES.welcome)}</p></section>`;
+}
+
+function renderPreviewTitle(title) {
+  return `<h3>${escapeHtml(title)}</h3>`;
+}
+
+function updateManualDesign(input) {
+  updateManualDesignValue(input.dataset.manualDesign, input.value);
+}
+
+function updateManualDesignValue(field, value) {
+  state.manualDesign = {
+    ...normalizeManualDesign(state.manualDesign || {}),
+    [field]: value
+  };
+  saveState();
+  renderModule("weddingParty");
+}
+
+function exportManualPdf() {
+  window.print();
 }
 
 function uniqueManualFieldId(title, config) {
@@ -3502,6 +3641,7 @@ function normalizeState(nextState) {
   nextState.weddingPartyManual = normalizeWeddingPartyManual(nextState.weddingPartyManual || {}, nextState.weddingPartyManualConfig);
   nextState.weddingPartyManualAttachments = normalizeManualAttachments(nextState.weddingPartyManualAttachments || {});
   nextState.weddingPartyDetails = normalizeWeddingPartyDetails(nextState.weddingPartyDetails || {});
+  nextState.manualDesign = normalizeManualDesign(nextState.manualDesign || {});
   if (nextState.wedding) {
     nextState.wedding.coupleType ||= "bride_groom";
     nextState.wedding.date = normalizeWeddingDate(nextState.wedding.date);
