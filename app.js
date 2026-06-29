@@ -110,7 +110,13 @@ const DEFAULT_MANUAL_DESIGN = {
   backgroundColor: "#fffaf5",
   accentColor: "#7a3f5c",
   titleColor: "#2b2420",
-  detailColor: "#d8b4a6"
+  detailColor: "#d8b4a6",
+  fontFamily: "Cormorant Garamond",
+  coverTitleSize: 44,
+  coverInfoSize: 30,
+  coverDateSize: 22,
+  contentTitleSize: 10,
+  contentTextSize: 8.4
 };
 
 const DEFAULT_BUDGET_BASE = 80000;
@@ -2006,6 +2012,14 @@ function normalizeManualDesign(design = {}) {
   next.titleColor = normalizeHexColor(next.titleColor, DEFAULT_MANUAL_DESIGN.titleColor);
   next.accentColor = normalizeHexColor(next.accentColor, DEFAULT_MANUAL_DESIGN.accentColor);
   next.detailColor = normalizeHexColor(next.detailColor, DEFAULT_MANUAL_DESIGN.detailColor);
+  next.fontFamily = ["Cormorant Garamond", "Playfair Display", "Libre Baskerville", "Lora", "Montserrat", "Poppins"].includes(next.fontFamily)
+    ? next.fontFamily
+    : DEFAULT_MANUAL_DESIGN.fontFamily;
+  next.coverTitleSize = clamp(Number(next.coverTitleSize) || DEFAULT_MANUAL_DESIGN.coverTitleSize, 26, 64);
+  next.coverInfoSize = clamp(Number(next.coverInfoSize) || DEFAULT_MANUAL_DESIGN.coverInfoSize, 14, 42);
+  next.coverDateSize = clamp(Number(next.coverDateSize) || DEFAULT_MANUAL_DESIGN.coverDateSize, 12, 32);
+  next.contentTitleSize = clamp(Number(next.contentTitleSize) || DEFAULT_MANUAL_DESIGN.contentTitleSize, 8, 18);
+  next.contentTextSize = clamp(Number(next.contentTextSize) || DEFAULT_MANUAL_DESIGN.contentTextSize, 6.5, 14);
   return next;
 }
 
@@ -2042,6 +2056,14 @@ function renderManualDesigner() {
         ${renderManualHexControl("HEX dos titulos", "titleColor", design.titleColor)}
         ${renderManualHexControl("HEX dos detalhes", "accentColor", design.accentColor)}
       </div>
+      <div class="manual-font-tools">
+        ${renderManualFontControl(design.fontFamily)}
+        ${renderManualSizeControl("Titulo da capa", "coverTitleSize", design.coverTitleSize)}
+        ${renderManualSizeControl("Casal na capa", "coverInfoSize", design.coverInfoSize)}
+        ${renderManualSizeControl("Data na capa", "coverDateSize", design.coverDateSize)}
+        ${renderManualSizeControl("Titulos internos", "contentTitleSize", design.contentTitleSize)}
+        ${renderManualSizeControl("Textos internos", "contentTextSize", design.contentTextSize)}
+      </div>
       <div class="manual-template-list">
         ${MANUAL_DESIGN_TEMPLATES.map((item) => `
           <button class="manual-template-chip ${item.id === design.templateId ? "active" : ""}" type="button" data-manual-template="${escapeHtml(item.id)}">
@@ -2069,6 +2091,25 @@ function renderManualHexControl(label, field, value) {
   `;
 }
 
+function renderManualFontControl(value) {
+  const fonts = ["Cormorant Garamond", "Playfair Display", "Libre Baskerville", "Lora", "Montserrat", "Poppins"];
+  return `
+    <label>Estilo da letra
+      <select data-manual-design="fontFamily">
+        ${fonts.map((font) => `<option value="${escapeHtml(font)}" ${font === value ? "selected" : ""}>${escapeHtml(font)}</option>`).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function renderManualSizeControl(label, field, value) {
+  return `
+    <label>${escapeHtml(label)}
+      <input type="number" min="6" max="72" step="0.5" value="${escapeHtml(String(value))}" data-manual-design="${escapeHtml(field)}">
+    </label>
+  `;
+}
+
 function renderManualPreview(design, template) {
   const manual = normalizeWeddingPartyManual(state.weddingPartyManual || {});
   const guideTitle = design.guideType === "godfathers" ? "Guia dos Padrinhos" : "Guia das Madrinhas";
@@ -2078,7 +2119,18 @@ function renderManualPreview(design, template) {
   const colors = state.data.identity.filter((item) => item.section === "Paleta de cores" && item.group === paletteGroup);
   const fields = weddingPartyManualFields().filter(([name]) => name !== oppositeDressField);
   const coupleName = manualCoupleName();
-  const style = `--manual-bg:${escapeHtml(design.backgroundColor)};--manual-title:${escapeHtml(design.titleColor)};--manual-accent:${escapeHtml(design.accentColor)};--manual-detail:${escapeHtml(design.detailColor)};`;
+  const style = [
+    `--manual-bg:${escapeHtml(design.backgroundColor)}`,
+    `--manual-title:${escapeHtml(design.titleColor)}`,
+    `--manual-accent:${escapeHtml(design.accentColor)}`,
+    `--manual-detail:${escapeHtml(design.detailColor)}`,
+    `--manual-font:${escapeHtml(design.fontFamily)}`,
+    `--manual-cover-title-size:${escapeHtml(String(design.coverTitleSize))}`,
+    `--manual-cover-info-size:${escapeHtml(String(design.coverInfoSize))}`,
+    `--manual-cover-date-size:${escapeHtml(String(design.coverDateSize))}`,
+    `--manual-content-title-size:${escapeHtml(String(design.contentTitleSize))}`,
+    `--manual-content-text-size:${escapeHtml(String(design.contentTextSize))}`
+  ].join(";");
   return `
     <article class="manual-print-preview template-${escapeHtml(template.style)}" style="${style}">
       <section class="manual-print-page manual-cover-panel">
@@ -2160,9 +2212,14 @@ function updateManualDesign(input) {
 function updateManualDesignValue(field, value) {
   const current = normalizeManualDesign(state.manualDesign || {});
   const colorFields = ["backgroundColor", "titleColor", "accentColor", "detailColor"];
+  const numberFields = ["coverTitleSize", "coverInfoSize", "coverDateSize", "contentTitleSize", "contentTextSize"];
   state.manualDesign = {
     ...current,
-    [field]: colorFields.includes(field) ? normalizeHexColor(value, current[field]) : value
+    [field]: colorFields.includes(field)
+      ? normalizeHexColor(value, current[field])
+      : numberFields.includes(field)
+        ? Number(value) || current[field]
+        : value
   };
   saveState();
   renderModule("weddingParty");
@@ -2171,10 +2228,14 @@ function updateManualDesignValue(field, value) {
 function exportManualPdf() {
   const preview = document.querySelector(".manual-print-preview");
   if (!preview) return window.print();
-  const printWindow = window.open("", "manualPdf", "width=1200,height=820");
-  if (!printWindow) return window.print();
-  printWindow.document.open();
-  printWindow.document.write(`
+  document.querySelector("#manualPrintFrame")?.remove();
+  const frame = document.createElement("iframe");
+  frame.id = "manualPrintFrame";
+  frame.className = "manual-print-frame";
+  document.body.append(frame);
+  const frameDocument = frame.contentDocument || frame.contentWindow.document;
+  frameDocument.open();
+  frameDocument.write(`
     <!doctype html>
     <html lang="pt-BR">
       <head>
@@ -2184,16 +2245,20 @@ function exportManualPdf() {
       </head>
       <body class="manual-printing manual-export-window">
         <div id="manualPrintRoot">${preview.outerHTML}</div>
-        <script>
-          window.addEventListener("load", () => {
-            window.focus();
-            window.print();
-          });
-        <\/script>
       </body>
     </html>
   `);
-  printWindow.document.close();
+  frameDocument.close();
+  const cleanup = () => {
+    frame.remove();
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
+  window.setTimeout(() => {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    window.setTimeout(cleanup, 1200);
+  }, 250);
 }
 
 function uniqueManualFieldId(title, config) {

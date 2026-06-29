@@ -1576,7 +1576,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   gap: 12px;
 }
 
-.manual-hex-tools label {
+.manual-font-tools {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.manual-hex-tools label,
+.manual-font-tools label {
   display: grid;
   gap: 6px;
   color: var(--muted);
@@ -1585,6 +1592,22 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .manual-hex-tools input {
   text-transform: uppercase;
+}
+
+.manual-font-tools input,
+.manual-font-tools select {
+  min-width: 0;
+}
+
+.manual-print-frame {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .manual-template-list {
@@ -1631,6 +1654,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   border-radius: 8px;
   background: rgba(255, 250, 245, 0.55);
   color: var(--manual-title);
+  font-family: var(--manual-font), Georgia, "Times New Roman", serif;
   box-shadow: var(--shadow);
 }
 
@@ -1661,24 +1685,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 .manual-print-preview h3 {
   margin: 0;
   color: var(--manual-title);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--manual-font), Georgia, "Times New Roman", serif;
 }
 
 .manual-cover-panel h2 {
   max-width: 340px;
-  font-size: 3.25rem;
+  font-size: calc(var(--manual-cover-title-size) * 1px);
   line-height: 1.02;
 }
 
 .manual-cover-panel p {
   max-width: 420px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 2.15rem;
+  font-family: var(--manual-font), Georgia, "Times New Roman", serif;
+  font-size: calc(var(--manual-cover-info-size) * 1px);
   line-height: 1.08;
 }
 
 .manual-cover-panel strong {
-  font-size: 1.55rem;
+  font-size: calc(var(--manual-cover-date-size) * 1px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1726,13 +1750,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 .manual-preview-field h3 {
   margin-bottom: 7px;
   color: var(--manual-accent);
-  font-size: 1.05rem;
+  font-size: calc(var(--manual-content-title-size) * 1px);
 }
 
 .manual-print-preview p {
   margin: 0;
   color: color-mix(in srgb, var(--manual-title) 72%, #756c66);
-  font-size: 0.94rem;
+  font-size: calc(var(--manual-content-text-size) * 1px);
   line-height: 1.5;
 }
 
@@ -2056,7 +2080,8 @@ td:last-child { text-align: right; white-space: nowrap; }
   .manual-section-grid,
   .wedding-party-colors,
   .manual-designer-tools,
-  .manual-hex-tools { grid-template-columns: 1fr; }
+  .manual-hex-tools,
+  .manual-font-tools { grid-template-columns: 1fr; }
   .color-card { grid-template-columns: 56px 1fr; }
   .color-preview { width: 50px; height: 50px; }
   .compact-color-card { grid-template-columns: 46px max-content auto; }
@@ -2115,7 +2140,7 @@ td:last-child { text-align: right; white-space: nowrap; }
     padding: 14mm;
     border: 0;
     border-radius: 0;
-    overflow: hidden;
+    overflow: visible;
     page-break-after: always;
     break-after: page;
   }
@@ -2136,11 +2161,11 @@ td:last-child { text-align: right; white-space: nowrap; }
   }
 
   .manual-preview-field h3 {
-    font-size: 12pt;
+    font-size: calc(var(--manual-content-title-size) * 1pt);
   }
 
   .manual-print-preview p {
-    font-size: 9.5pt;
+    font-size: calc(var(--manual-content-text-size) * 1pt);
     line-height: 1.34;
   }
 
@@ -2151,15 +2176,15 @@ td:last-child { text-align: right; white-space: nowrap; }
   }
 
   .manual-cover-panel h2 {
-    font-size: 42pt;
+    font-size: calc(var(--manual-cover-title-size) * 1pt);
   }
 
   .manual-cover-panel p {
-    font-size: 28pt;
+    font-size: calc(var(--manual-cover-info-size) * 1pt);
   }
 
   .manual-cover-panel strong {
-    font-size: 20pt;
+    font-size: calc(var(--manual-cover-date-size) * 1pt);
   }
 
   .manual-content-header h3 {
