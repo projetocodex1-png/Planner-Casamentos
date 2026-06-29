@@ -1570,6 +1570,23 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   padding: 4px;
 }
 
+.manual-hex-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.manual-hex-tools label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.manual-hex-tools input {
+  text-transform: uppercase;
+}
+
 .manual-template-list {
   display: flex;
   gap: 8px;
@@ -1649,18 +1666,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .manual-cover-panel h2 {
   max-width: 340px;
-  font-size: 3.1rem;
+  font-size: 3.25rem;
   line-height: 1.02;
 }
 
 .manual-cover-panel p {
-  max-width: 340px;
+  max-width: 420px;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.55rem;
+  font-size: 2.15rem;
+  line-height: 1.08;
 }
 
 .manual-cover-panel strong {
-  font-size: 1.05rem;
+  font-size: 1.55rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -2037,7 +2055,8 @@ td:last-child { text-align: right; white-space: nowrap; }
   .wedding-party-grid,
   .manual-section-grid,
   .wedding-party-colors,
-  .manual-designer-tools { grid-template-columns: 1fr; }
+  .manual-designer-tools,
+  .manual-hex-tools { grid-template-columns: 1fr; }
   .color-card { grid-template-columns: 56px 1fr; }
   .color-preview { width: 50px; height: 50px; }
   .compact-color-card { grid-template-columns: 46px max-content auto; }
@@ -2132,11 +2151,15 @@ td:last-child { text-align: right; white-space: nowrap; }
   }
 
   .manual-cover-panel h2 {
-    font-size: 34pt;
+    font-size: 42pt;
   }
 
   .manual-cover-panel p {
-    font-size: 18pt;
+    font-size: 28pt;
+  }
+
+  .manual-cover-panel strong {
+    font-size: 20pt;
   }
 
   .manual-content-header h3 {

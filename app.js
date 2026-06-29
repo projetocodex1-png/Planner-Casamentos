@@ -947,7 +947,10 @@ function renderModule(key) {
     });
   });
   els.moduleView.querySelectorAll("[data-manual-design]").forEach((input) => {
-    input.addEventListener("input", () => updateManualDesign(input));
+    if (input.type === "color") input.addEventListener("input", () => updateManualDesign(input));
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") updateManualDesign(input);
+    });
     input.addEventListener("change", () => updateManualDesign(input));
   });
   els.moduleView.querySelectorAll("[data-manual-template]").forEach((button) => {
@@ -1999,6 +2002,10 @@ function normalizeManualDesign(design = {}) {
   };
   if (!MANUAL_DESIGN_TEMPLATES.some((template) => template.id === next.templateId)) next.templateId = DEFAULT_MANUAL_DESIGN.templateId;
   if (!["godmothers", "godfathers"].includes(next.guideType)) next.guideType = DEFAULT_MANUAL_DESIGN.guideType;
+  next.backgroundColor = normalizeHexColor(next.backgroundColor, DEFAULT_MANUAL_DESIGN.backgroundColor);
+  next.titleColor = normalizeHexColor(next.titleColor, DEFAULT_MANUAL_DESIGN.titleColor);
+  next.accentColor = normalizeHexColor(next.accentColor, DEFAULT_MANUAL_DESIGN.accentColor);
+  next.detailColor = normalizeHexColor(next.detailColor, DEFAULT_MANUAL_DESIGN.detailColor);
   return next;
 }
 
@@ -2030,6 +2037,11 @@ function renderManualDesigner() {
         <label>Títulos<input type="color" value="${escapeHtml(design.titleColor)}" data-manual-design="titleColor"></label>
         <label>Detalhes<input type="color" value="${escapeHtml(design.accentColor)}" data-manual-design="accentColor"></label>
       </div>
+      <div class="manual-hex-tools">
+        ${renderManualHexControl("HEX do fundo", "backgroundColor", design.backgroundColor)}
+        ${renderManualHexControl("HEX dos titulos", "titleColor", design.titleColor)}
+        ${renderManualHexControl("HEX dos detalhes", "accentColor", design.accentColor)}
+      </div>
       <div class="manual-template-list">
         ${MANUAL_DESIGN_TEMPLATES.map((item) => `
           <button class="manual-template-chip ${item.id === design.templateId ? "active" : ""}" type="button" data-manual-template="${escapeHtml(item.id)}">
@@ -2047,6 +2059,14 @@ function renderManualDesigner() {
 
 function manualTemplate(id) {
   return MANUAL_DESIGN_TEMPLATES.find((template) => template.id === id) || MANUAL_DESIGN_TEMPLATES[0];
+}
+
+function renderManualHexControl(label, field, value) {
+  return `
+    <label>${escapeHtml(label)}
+      <input type="text" value="${escapeHtml(value)}" maxlength="7" pattern="#[0-9a-fA-F]{6}" data-manual-design="${escapeHtml(field)}">
+    </label>
+  `;
 }
 
 function renderManualPreview(design, template) {
@@ -2138,31 +2158,42 @@ function updateManualDesign(input) {
 }
 
 function updateManualDesignValue(field, value) {
+  const current = normalizeManualDesign(state.manualDesign || {});
+  const colorFields = ["backgroundColor", "titleColor", "accentColor", "detailColor"];
   state.manualDesign = {
-    ...normalizeManualDesign(state.manualDesign || {}),
-    [field]: value
+    ...current,
+    [field]: colorFields.includes(field) ? normalizeHexColor(value, current[field]) : value
   };
   saveState();
   renderModule("weddingParty");
 }
 
 function exportManualPdf() {
-  document.querySelector("#manualPrintRoot")?.remove();
   const preview = document.querySelector(".manual-print-preview");
   if (!preview) return window.print();
-  const printRoot = document.createElement("div");
-  printRoot.id = "manualPrintRoot";
-  printRoot.append(preview.cloneNode(true));
-  document.body.append(printRoot);
-  document.body.classList.add("manual-printing");
-  const cleanup = () => {
-    document.body.classList.remove("manual-printing");
-    printRoot.remove();
-    window.removeEventListener("afterprint", cleanup);
-  };
-  window.addEventListener("afterprint", cleanup);
-  window.print();
-  window.setTimeout(cleanup, 800);
+  const printWindow = window.open("", "manualPdf", "width=1200,height=820");
+  if (!printWindow) return window.print();
+  printWindow.document.open();
+  printWindow.document.write(`
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8">
+        <title>Manual dos padrinhos</title>
+        <link rel="stylesheet" href="styles.css">
+      </head>
+      <body class="manual-printing manual-export-window">
+        <div id="manualPrintRoot">${preview.outerHTML}</div>
+        <script>
+          window.addEventListener("load", () => {
+            window.focus();
+            window.print();
+          });
+        <\/script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
 
 function uniqueManualFieldId(title, config) {
@@ -3907,9 +3938,9 @@ function groupFromLegacyCategory(category) {
   return groups[category] || "Decoracao";
 }
 
-function normalizeHexColor(value) {
+function normalizeHexColor(value, fallback = "") {
   const match = /^#?([0-9a-f]{6})$/i.exec(String(value || "").trim());
-  return match ? `#${match[1].toUpperCase()}` : "";
+  return match ? `#${match[1].toUpperCase()}` : fallback;
 }
 
 function suggestColorName(hex) {
