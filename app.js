@@ -339,6 +339,12 @@ const seedState = {
   tablePlanner: {
     expandedTables: []
   },
+  dailyPresence: {
+    lastDate: "",
+    streak: 0,
+    total: 0,
+    updatedAt: ""
+  },
   paymentCalendarMonth: "",
   vendorCategories: ["Buffet", "Vestido", "Traje", "Decoracao", "Fotografia", "Filmagem", "Doces", "Transporte", "Maquiagem", "Bar", "Local", "Musica"],
   vendorView: {
@@ -366,6 +372,7 @@ let guestDragScrollFrame = null;
 let guestDragScrollY = 0;
 let cloudSaveTimer = null;
 let isApplyingCloudState = false;
+let dailyPresenceBusy = false;
 
 const els = {
   authScreen: document.querySelector("#authScreen"),
@@ -590,17 +597,21 @@ async function loadCloudState(user) {
 function queueCloudSave() {
   if (!supabaseClient || isApplyingCloudState || !state.user?.id) return;
   clearTimeout(cloudSaveTimer);
-  cloudSaveTimer = setTimeout(saveCloudState, 500);
+  cloudSaveTimer = setTimeout(() => saveCloudState(), 500);
 }
 
-async function saveCloudState() {
+async function saveCloudState(options = {}) {
   if (!supabaseClient || !state.user?.id) return;
+  clearTimeout(cloudSaveTimer);
   const { error } = await supabaseClient.from("planner_states").upsert({
     user_id: state.user.id,
     state,
     updated_at: new Date().toISOString()
   }, { onConflict: "user_id" });
-  if (error) console.warn("Nao foi possivel salvar dados no Supabase.", error);
+  if (error) {
+    console.warn("Nao foi possivel salvar dados no Supabase.", error);
+    if (options.throwOnError) throw error;
+  }
 }
 
 function appRedirectUrl() {
@@ -738,6 +749,45 @@ function wireShell() {
   document.querySelector("[data-close-dialog]").addEventListener("click", () => els.itemDialog.close());
 }
 
+async function registerDailyPresence() {
+  if (dailyPresenceBusy) return;
+  if (!supabaseClient || !state.user?.id) {
+    alert("Entre com sua conta para registrar a presenca no Supabase.");
+    return;
+  }
+
+  const today = localDateKey();
+  if (state.dailyPresence?.lastDate === today) {
+    alert("Presenca de hoje ja registrada.");
+    return;
+  }
+
+  dailyPresenceBusy = true;
+  render();
+
+  const previous = state.dailyPresence || {};
+  const streak = previous.lastDate === localDateKey(-1) ? Number(previous.streak || 0) + 1 : 1;
+  state.dailyPresence = {
+    lastDate: today,
+    streak,
+    total: Number(previous.total || 0) + 1,
+    updatedAt: new Date().toISOString()
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+  try {
+    await saveCloudState({ throwOnError: true });
+  } catch (error) {
+    state.dailyPresence = previous;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    console.warn("Nao foi possivel registrar a presenca diaria.", error);
+    alert("Nao foi possivel registrar a presenca diaria. Tente novamente.");
+  } finally {
+    dailyPresenceBusy = false;
+    render();
+  }
+}
+
 function render() {
   const isAuthed = Boolean(state.user);
   els.authScreen.classList.toggle("hidden", isAuthed);
@@ -816,6 +866,7 @@ function renderDashboard() {
       <div>
         <p class="eyebrow">${periodGreeting()}, ${state.wedding?.couple || "Casamento"}!</p>
         <h3>Vamos planejar seu grande dia?</h3>
+        ${renderDailyPresence()}
       </div>
       <button class="countdown-card" type="button" data-edit-wedding>
         <span class="calendar-icon"></span>
@@ -884,7 +935,30 @@ function renderDashboard() {
       render();
     });
   });
+  els.dashboardView.querySelector("[data-daily-presence]")?.addEventListener("click", registerDailyPresence);
   els.dashboardView.querySelector("[data-edit-wedding]")?.addEventListener("click", () => openWeddingDialog("edit"));
+}
+
+function renderDailyPresence() {
+  const presence = state.dailyPresence || {};
+  const hasSignedToday = presence.lastDate === localDateKey();
+  const label = dailyPresenceBusy ? "Registrando" : hasSignedToday ? "Assinado" : "Assinar";
+  const detail = presence.total
+    ? `${Number(presence.streak || 0)} dia${Number(presence.streak || 0) === 1 ? "" : "s"} em sequencia | ${presence.total} presenca${Number(presence.total) === 1 ? "" : "s"}`
+    : "Registre uma presenca por dia para manter o planner sincronizado.";
+
+  return `
+    <div class="daily-presence">
+      <div class="daily-presence-row">
+        <strong>Presenca diaria</strong>
+        <button class="daily-presence-button ${hasSignedToday ? "signed" : ""}" type="button" data-daily-presence ${dailyPresenceBusy || hasSignedToday ? "disabled" : ""}>
+          <span>${label}</span>
+          <span class="daily-presence-check" aria-hidden="true"></span>
+        </button>
+      </div>
+      <p>${detail}</p>
+    </div>
+  `;
 }
 
 function renderModule(key) {
@@ -3797,6 +3871,10 @@ function normalizeState(nextState) {
     ...structuredClone(seedState).data,
     ...(nextState.data || {})
   };
+  nextState.dailyPresence = {
+    ...structuredClone(seedState.dailyPresence),
+    ...(nextState.dailyPresence || {})
+  };
   nextState.weddingPartyManualConfig = normalizeWeddingPartyManualConfig(nextState.weddingPartyManualConfig || {});
   nextState.weddingPartyManual = normalizeWeddingPartyManual(nextState.weddingPartyManual || {}, nextState.weddingPartyManualConfig);
   nextState.weddingPartyManualAttachments = normalizeManualAttachments(nextState.weddingPartyManualAttachments || {});
@@ -4083,6 +4161,15 @@ function todayPlus(days) {
   const date = new Date();
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function localDateKey(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function metric(label, value, helper) {

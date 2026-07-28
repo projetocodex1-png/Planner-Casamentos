@@ -373,6 +373,88 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   font-weight: 650;
 }
 
+.daily-presence {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  max-width: 620px;
+}
+
+.daily-presence-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.daily-presence-row strong {
+  font-size: 1.05rem;
+}
+
+.daily-presence p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.daily-presence-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 10px 0 18px;
+  background: #eeecea;
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.daily-presence-button:not(:disabled):hover {
+  background: #e2ded9;
+  color: var(--ink);
+}
+
+.daily-presence-button:focus-visible {
+  outline: 3px solid rgba(40, 124, 116, 0.22);
+  outline-offset: 2px;
+}
+
+.daily-presence-button.signed,
+.daily-presence-button:disabled {
+  cursor: default;
+}
+
+.daily-presence-button.signed {
+  background: rgba(40, 124, 116, 0.13);
+  color: var(--teal);
+}
+
+.daily-presence-check {
+  width: 30px;
+  height: 30px;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #c7c7c7;
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.daily-presence-button.signed .daily-presence-check {
+  background: var(--teal);
+}
+
+.daily-presence-check::after {
+  content: "";
+  width: 8px;
+  height: 14px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+
 .countdown-card {
   display: flex;
   align-items: center;
