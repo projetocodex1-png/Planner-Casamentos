@@ -399,6 +399,7 @@ init();
 async function init() {
   wireAuth();
   wireShell();
+  wireCloudSaveGuards();
   handleAuthRedirectMessage();
   await restoreCloudSession();
   render();
@@ -603,6 +604,7 @@ function queueCloudSave() {
 async function saveCloudState(options = {}) {
   if (!supabaseClient || !state.user?.id) return;
   clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = null;
   const { error } = await supabaseClient.from("planner_states").upsert({
     user_id: state.user.id,
     state,
@@ -653,12 +655,12 @@ function wireShell() {
     exportCsv(key);
   });
 
-  els.itemForm.addEventListener("submit", (event) => {
+  els.itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const key = editing.key;
     const form = new FormData(els.itemForm);
     if (key === "seatGuest") {
-      saveGuestSeat(form);
+      if (await saveGuestSeat(form) === false) return;
       els.itemDialog.close();
       editing = null;
       render();
@@ -674,7 +676,7 @@ function wireShell() {
       return;
     }
     if (key === "guestColumn") {
-      saveGuestColumn(form);
+      if (await saveGuestColumn(form) === false) return;
       els.itemDialog.close();
       editing = null;
       render();
@@ -709,7 +711,7 @@ function wireShell() {
       return;
     }
     if (key === "guests") {
-      saveGuestItem(form);
+      if (await saveGuestItem(form) === false) return;
       els.itemDialog.close();
       editing = null;
       render();
@@ -747,6 +749,20 @@ function wireShell() {
   });
 
   document.querySelector("[data-close-dialog]").addEventListener("click", () => els.itemDialog.close());
+}
+
+function wireCloudSaveGuards() {
+  window.addEventListener("pagehide", flushPendingCloudSave);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushPendingCloudSave();
+  });
+}
+
+function flushPendingCloudSave() {
+  if (!cloudSaveTimer) return;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = null;
+  saveCloudState();
 }
 
 async function registerDailyPresence() {
@@ -2668,14 +2684,14 @@ function assignGuestToTable(guestId, tableId) {
   const table = state.data.tables.find((entry) => entry.id === tableId);
   if (!guestId || !table) return;
   state.data.guests = state.data.guests.map((guest) => guest.id === guestId ? { ...guest, table: table.name, tableId: table.id, looseX: "", looseY: "" } : guest);
-  saveState();
+  saveGuestState();
   renderModule("tables");
 }
 
 function unassignGuest(guestId) {
   if (!guestId) return;
   state.data.guests = state.data.guests.map((guest) => guest.id === guestId ? { ...guest, table: "", tableId: "", looseX: "", looseY: "" } : guest);
-  saveState();
+  saveGuestState();
   renderModule("tables");
 }
 
@@ -2692,7 +2708,7 @@ function placeGuestOnStage(guestId, event) {
     looseX: Math.round(x),
     looseY: Math.round(y)
   } : guest);
-  saveState();
+  saveGuestState();
   renderModule("tables");
 }
 
@@ -2796,10 +2812,10 @@ function openGuestSeatDialog(guestId) {
   els.itemDialog.showModal();
 }
 
-function saveGuestSeat(form) {
+async function saveGuestSeat(form) {
   const target = String(form.get("target") || "");
   const guest = state.data.guests.find((entry) => entry.id === editing.id);
-  if (!guest) return;
+  if (!guest) return false;
   if (!target) {
     state.data.guests = state.data.guests.map((entry) => entry.id === guest.id ? { ...entry, table: "", tableId: "", looseX: "", looseY: "" } : entry);
   } else if (target === "loose") {
@@ -2816,7 +2832,7 @@ function saveGuestSeat(form) {
       state.data.guests = state.data.guests.map((entry) => entry.id === guest.id ? { ...entry, table: table.name, tableId: table.id, looseX: "", looseY: "" } : entry);
     }
   }
-  saveState();
+  return saveGuestState();
 }
 
 function openIdentityFontDialog(id = null) {
@@ -2939,17 +2955,17 @@ function openGuestColumnDialog() {
   els.itemDialog.showModal();
 }
 
-function saveGuestColumn(form) {
+async function saveGuestColumn(form) {
   const label = String(form.get("columnLabel") || "").trim();
-  if (!label) return;
-  if ((state.guestExtraColumns || []).some((column) => normalizeHeader(column.label) === normalizeHeader(label))) return;
+  if (!label) return false;
+  if ((state.guestExtraColumns || []).some((column) => normalizeHeader(column.label) === normalizeHeader(label))) return false;
   const id = uniqueGuestColumnId(label);
   state.guestExtraColumns = [...(state.guestExtraColumns || []), { id, label }];
   state.data.guests = state.data.guests.map((guest) => ({
     ...guest,
     extra: { ...(guest.extra || {}), [id]: "" }
   }));
-  saveState();
+  return saveGuestState();
 }
 
 function guestExtraFields(item) {
@@ -2987,7 +3003,7 @@ function wireGuestForm() {
   refreshRole();
 }
 
-function saveGuestItem(form) {
+async function saveGuestItem(form) {
   let group = String(form.get("group") || "").trim();
   let role = String(form.get("role") || "").trim();
   const newGroup = String(form.get("newGroup") || "").trim();
@@ -3020,7 +3036,7 @@ function saveGuestItem(form) {
   };
   if (editing.id) state.data.guests = state.data.guests.map((entry) => entry.id === editing.id ? item : entry);
   else state.data.guests.push(item);
-  saveState();
+  return saveGuestState();
 }
 
 function renderMusicForm(item) {
@@ -3265,6 +3281,11 @@ function saveIdentityItem(form) {
 function deleteItem(key, id) {
   if (!confirm("Excluir este item?")) return;
   state.data[key] = state.data[key].filter((item) => item.id !== id);
+  if (key === "guests") {
+    saveGuestState();
+    render();
+    return;
+  }
   saveState();
   render();
 }
@@ -3314,6 +3335,7 @@ function updateGuestInlineField(input) {
   const guestId = input.dataset.guestId;
   const field = input.dataset.guestInline;
   const value = input.value;
+  const previous = state.data.guests;
   state.data.guests = state.data.guests.map((guest) => {
     if (guest.id !== guestId) return guest;
     if (field.startsWith("extra:")) {
@@ -3328,7 +3350,8 @@ function updateGuestInlineField(input) {
     if (field === "rsvp") return { ...guest, rsvp: normalizeGuestRsvp(value) };
     return { ...guest, [field]: value };
   });
-  saveState();
+  const changed = previous !== state.data.guests && previous.some((guest, index) => guest !== state.data.guests[index]);
+  if (changed) saveGuestState();
   if (input.tagName === "SELECT") renderModule("guests");
 }
 
@@ -3418,7 +3441,7 @@ function exportFields(key) {
 function importGuestsCsv(event) {
   const file = event.target.files[0];
   if (!file) return;
-  file.text().then((text) => {
+  file.text().then(async (text) => {
     const rows = parseDelimitedText(text);
     const [headerRow, ...dataRows] = rows.filter((row) => row.some((cell) => String(cell).trim()));
     if (!headerRow) return;
@@ -3445,7 +3468,7 @@ function importGuestsCsv(event) {
       };
     });
     state.data.guests.push(...imported);
-    saveState();
+    await saveGuestState();
     render();
   });
 }
@@ -3568,9 +3591,22 @@ function loadState() {
   }
 }
 
-function saveState() {
+function saveState(options = {}) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (options.immediateCloud) return saveCloudState(options);
   queueCloudSave();
+  return Promise.resolve();
+}
+
+async function saveGuestState() {
+  try {
+    await saveState({ immediateCloud: true, throwOnError: true });
+    return true;
+  } catch (error) {
+    console.warn("Nao foi possivel salvar convidados no Supabase.", error);
+    alert("Nao foi possivel salvar os convidados na nuvem agora. As mudancas ficaram neste navegador; tente salvar novamente antes de sair.");
+    return false;
+  }
 }
 
 function initializeBudgetDefaults() {
