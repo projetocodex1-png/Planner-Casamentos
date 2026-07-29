@@ -1874,7 +1874,10 @@ function renderWeddingPartyManualExtras(name, colors) {
     `;
   }
   if (name === "inspirations") {
-    return renderManualPhotoAttachments(name);
+    return `
+      ${renderManualPhotoAttachments("godmotherInspirations", "Inspiracao madrinhas")}
+      ${renderManualPhotoAttachments("godfatherInspirations", "Inspiracao padrinhos")}
+    `;
   }
   return "";
 }
@@ -1930,12 +1933,12 @@ function renderWeddingMiniCalendar(dateValue, marker) {
   `;
 }
 
-function renderManualPhotoAttachments(field) {
+function renderManualPhotoAttachments(field, label = "Imagens de Inspiracao") {
   const attachments = normalizeManualAttachments(state.weddingPartyManualAttachments || {})[field] || [];
   return `
     <div class="manual-extra-block">
       <div class="manual-extra-header">
-        <h5>Imagens de Inspiracao</h5>
+        <h5>${escapeHtml(label)}</h5>
         <label class="secondary-action attachment-button">
           Anexar fotos
           <input class="hidden" type="file" accept="image/*" multiple data-manual-attachment-input="${escapeHtml(field)}">
@@ -2248,15 +2251,20 @@ function renderManualPreview(design, template) {
 function renderManualPreviewField(name, title, example, context) {
   const { manual, colors, design } = context;
   const text = manual[name] || example || "";
+  const inspirationField = manualInspirationAttachmentField(design.guideType);
   return `
     <div class="manual-preview-field">
       ${renderPreviewTitle(title)}
       <p>${formatMultilineText(text || "Campo em branco.")}</p>
       ${name === "weddingInfo" ? `<div class="manual-preview-calendar">${renderWeddingMiniCalendar(state.wedding?.date, normalizeWeddingPartyDetails(state.weddingPartyDetails || {}).calendarMarker)}</div>` : ""}
-      ${name === "inspirations" ? renderManualPreviewAttachments("inspirations") : ""}
+      ${name === "inspirations" ? renderManualPreviewAttachments(inspirationField) : ""}
       ${name === (design.guideType === "godfathers" ? "godfatherDressCode" : "godmotherDressCode") ? renderManualPreviewPalette(colors) : ""}
     </div>
   `;
+}
+
+function manualInspirationAttachmentField(guideType) {
+  return guideType === "godfathers" ? "godfatherInspirations" : "godmotherInspirations";
 }
 
 function manualCoupleName() {
@@ -3916,6 +3924,10 @@ function normalizeState(nextState) {
   nextState.weddingPartyManualAttachments = normalizeManualAttachments(nextState.weddingPartyManualAttachments || {});
   if (nextState.weddingPartyManualAttachments.photos?.length && !nextState.weddingPartyManualAttachments.inspirations?.length) {
     nextState.weddingPartyManualAttachments.inspirations = nextState.weddingPartyManualAttachments.photos;
+  }
+  if (nextState.weddingPartyManualAttachments.inspirations?.length) {
+    nextState.weddingPartyManualAttachments.godmotherInspirations ||= nextState.weddingPartyManualAttachments.inspirations;
+    nextState.weddingPartyManualAttachments.godfatherInspirations ||= nextState.weddingPartyManualAttachments.inspirations;
   }
   nextState.weddingPartyDetails = normalizeWeddingPartyDetails(nextState.weddingPartyDetails || {});
   nextState.manualDesign = normalizeManualDesign(nextState.manualDesign || {});
