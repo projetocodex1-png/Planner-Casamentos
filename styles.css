@@ -1813,6 +1813,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   text-align: center;
 }
 
+.manual-cover-panel::after {
+  inset: 46px;
+  z-index: 0;
+  background:
+    linear-gradient(90deg, transparent calc(33.333% - 0.5px), color-mix(in srgb, var(--manual-accent) 24%, transparent) calc(33.333% - 0.5px) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
+    linear-gradient(90deg, transparent calc(66.666% - 0.5px), color-mix(in srgb, var(--manual-accent) 24%, transparent) calc(66.666% - 0.5px) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px));
+}
+
 .manual-cover-panel > * {
   grid-column: 2;
   position: relative;
@@ -1838,10 +1846,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 }
 
 .manual-cover-panel p {
-  max-width: 420px;
+  max-width: min(620px, 100%);
   font-family: var(--manual-font), Georgia, "Times New Roman", serif;
   font-size: calc(var(--manual-cover-info-size) * 1px);
-  line-height: 1.08;
+  line-height: 1.02;
 }
 
 .manual-cover-panel strong {
@@ -1903,7 +1911,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   line-height: 1.5;
 }
 
-.manual-ornament {
+.manual-ornament,
+.manual-monogram {
   display: inline-grid;
   place-items: center;
   justify-self: center;
@@ -1917,10 +1926,17 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   text-transform: uppercase;
 }
 
-.manual-ornament.small {
+.manual-monogram {
+  font-family: var(--manual-font), Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  letter-spacing: 0.03em;
+}
+
+.manual-ornament.small,
+.manual-monogram.small {
   width: 40px;
   height: 40px;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
 }
 
 .manual-preview-swatches,
@@ -2572,6 +2588,10 @@ td:last-child { text-align: right; white-space: nowrap; }
 
   .manual-cover-panel p {
     font-size: calc(var(--manual-cover-info-size) * 1pt);
+  }
+
+  .manual-cover-panel::after {
+    inset: 14mm;
   }
 
   .manual-cover-panel strong {

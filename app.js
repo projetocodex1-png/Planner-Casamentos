@@ -2123,7 +2123,7 @@ function normalizeManualDesign(design = {}) {
     ? next.fontFamily
     : DEFAULT_MANUAL_DESIGN.fontFamily;
   next.coverTitleSize = clamp(Number(next.coverTitleSize) || DEFAULT_MANUAL_DESIGN.coverTitleSize, 26, 64);
-  next.coverInfoSize = clamp(Number(next.coverInfoSize) || DEFAULT_MANUAL_DESIGN.coverInfoSize, 14, 42);
+  next.coverInfoSize = clamp(Number(next.coverInfoSize) || DEFAULT_MANUAL_DESIGN.coverInfoSize, 14, 72);
   next.coverDateSize = clamp(Number(next.coverDateSize) || DEFAULT_MANUAL_DESIGN.coverDateSize, 12, 32);
   next.contentTitleSize = clamp(Number(next.contentTitleSize) || DEFAULT_MANUAL_DESIGN.contentTitleSize, 8, 18);
   next.contentTextSize = clamp(Number(next.contentTextSize) || DEFAULT_MANUAL_DESIGN.contentTextSize, 6.5, 14);
@@ -2237,6 +2237,7 @@ function renderManualPreview(design, template) {
   const colors = state.data.identity.filter((item) => item.section === "Paleta de cores" && item.group === paletteGroup);
   const fields = weddingPartyManualFields().filter(([name]) => name !== oppositeDressField);
   const coupleName = manualCoupleName();
+  const initials = manualCoupleInitials();
   const style = [
     `--manual-bg:${escapeHtml(design.backgroundColor)}`,
     `--manual-title:${escapeHtml(design.titleColor)}`,
@@ -2252,14 +2253,14 @@ function renderManualPreview(design, template) {
   return `
     <article class="manual-print-preview template-${escapeHtml(template.style)}" style="${style}">
       <section class="manual-print-page manual-cover-panel">
-        <span class="manual-ornament">${manualTemplateOrnament(template.style)}</span>
+        <span class="manual-monogram">${escapeHtml(initials)}</span>
         <h2>${escapeHtml(guideTitle)}</h2>
-        <p>${escapeHtml(coupleName)}</p>
+        <p class="manual-cover-couple">${escapeHtml(coupleName)}</p>
         <strong>${escapeHtml(formatDate(state.wedding?.date) || "Data do casamento")}</strong>
       </section>
       <section class="manual-print-page manual-content-panel">
         <div class="manual-content-header">
-          <span class="manual-ornament small">${manualTemplateOrnament(template.style)}</span>
+          <span class="manual-monogram small">${escapeHtml(initials)}</span>
           <div>
             <h3>${escapeHtml(roleTitle)}</h3>
             <p>${escapeHtml(coupleName)}</p>
@@ -2298,6 +2299,22 @@ function manualCoupleName() {
   const second = String(state.wedding?.partnerTwo || "").trim();
   if (first && second) return `${first} & ${second}`;
   return String(state.wedding?.couple || "Nosso casamento").replace(/\s+e\s+/i, " & ");
+}
+
+function manualCoupleInitials() {
+  const first = String(state.wedding?.partnerOne || "").trim();
+  const second = String(state.wedding?.partnerTwo || "").trim();
+  const fallbackNames = String(state.wedding?.couple || "")
+    .split(/\s+e\s+|&|\+/i)
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const names = [first, second].filter(Boolean);
+  const source = names.length >= 2 ? names : fallbackNames;
+  const initials = source
+    .slice(0, 2)
+    .map((name) => name.charAt(0).toUpperCase())
+    .join("");
+  return initials || "PC";
 }
 
 function renderManualPreviewPalette(colors) {
@@ -2372,7 +2389,7 @@ async function exportManualPdf() {
   frame.className = "manual-print-frame";
   document.body.append(frame);
   const frameDocument = frame.contentDocument || frame.contentWindow.document;
-  const stylesheetUrl = new URL("styles.css?v=20260729e", window.location.href).href;
+  const stylesheetUrl = new URL("styles.css?v=20260729f", window.location.href).href;
   frameDocument.open();
   frameDocument.write(`
     <!doctype html>
