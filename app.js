@@ -2364,7 +2364,7 @@ function exportManualPdf() {
       <head>
         <meta charset="utf-8">
         <title>Manual dos padrinhos</title>
-        <link rel="stylesheet" href="styles.css">
+        <link rel="stylesheet" href="styles.css?v=20260729c">
       </head>
       <body class="manual-printing manual-export-window">
         <div id="manualPrintRoot">${preview.outerHTML}</div>

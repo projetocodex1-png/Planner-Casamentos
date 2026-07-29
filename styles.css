@@ -1566,7 +1566,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 }
 
 .mini-calendar-grid span.marked.heart {
-  font-size: 1rem;
+  background: transparent;
+  color: var(--ink);
 }
 
 .mini-calendar-grid .date-number {
@@ -1576,11 +1577,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .mini-calendar-grid .date-heart {
   position: absolute;
-  right: 5px;
-  bottom: 4px;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 0.62rem;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  color: transparent;
+  font-size: 2.15em;
   line-height: 1;
+  opacity: 0.9;
+  transform: translate(-50%, -46%) scaleX(1.08);
+  -webkit-text-stroke: 1.5px var(--plum);
 }
 
 .attachment-button {
@@ -2455,14 +2460,14 @@ td:last-child { text-align: right; white-space: nowrap; }
     padding: 14mm;
     border: 0;
     border-radius: 0;
-    overflow: visible;
-    page-break-after: always;
-    break-after: page;
-  }
-
-  .manual-print-page:last-child {
+    overflow: hidden;
     page-break-after: auto;
     break-after: auto;
+  }
+
+  .manual-print-page + .manual-print-page {
+    page-break-before: always;
+    break-before: page;
   }
 
   .manual-content-columns {
@@ -2488,6 +2493,11 @@ td:last-child { text-align: right; white-space: nowrap; }
     max-width: 42mm;
     padding: 2mm;
     font-size: 7.5pt;
+  }
+
+  .mini-calendar-grid .date-heart {
+    font-size: 2.2em;
+    -webkit-text-stroke-width: 1pt;
   }
 
   .manual-cover-panel h2 {
