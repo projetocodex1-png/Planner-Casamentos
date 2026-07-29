@@ -2363,7 +2363,7 @@ function updateManualDesignValue(field, value) {
   renderModule("weddingParty");
 }
 
-function exportManualPdf() {
+async function exportManualPdf() {
   const preview = document.querySelector(".manual-print-preview");
   if (!preview) return window.print();
   document.querySelector("#manualPrintFrame")?.remove();
@@ -2372,6 +2372,7 @@ function exportManualPdf() {
   frame.className = "manual-print-frame";
   document.body.append(frame);
   const frameDocument = frame.contentDocument || frame.contentWindow.document;
+  const stylesheetUrl = new URL("styles.css?v=20260729e", window.location.href).href;
   frameDocument.open();
   frameDocument.write(`
     <!doctype html>
@@ -2379,7 +2380,8 @@ function exportManualPdf() {
       <head>
         <meta charset="utf-8">
         <title>Manual dos padrinhos</title>
-        <link rel="stylesheet" href="styles.css?v=20260729d">
+        <link rel="stylesheet" href="${stylesheetUrl}">
+        <style>${collectLoadedStyles()}</style>
       </head>
       <body class="manual-printing manual-export-window">
         <div id="manualPrintRoot">${preview.outerHTML}</div>
@@ -2392,11 +2394,50 @@ function exportManualPdf() {
     window.removeEventListener("afterprint", cleanup);
   };
   window.addEventListener("afterprint", cleanup);
-  window.setTimeout(() => {
-    frame.contentWindow.focus();
-    frame.contentWindow.print();
-    window.setTimeout(cleanup, 1200);
-  }, 250);
+  await waitForManualPrintAssets(frame);
+  frame.contentWindow.focus();
+  frame.contentWindow.print();
+  window.setTimeout(cleanup, 1200);
+}
+
+function collectLoadedStyles() {
+  return Array.from(document.styleSheets)
+    .map((sheet) => {
+      try {
+        return Array.from(sheet.cssRules || []).map((rule) => rule.cssText).join("\n");
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function waitForManualPrintAssets(frame) {
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  const links = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
+  const images = Array.from(doc.images || []);
+  const linkPromises = links.map((link) => (
+    link.sheet
+      ? Promise.resolve()
+      : new Promise((resolve) => {
+          link.addEventListener("load", resolve, { once: true });
+          link.addEventListener("error", resolve, { once: true });
+        })
+  ));
+  const imagePromises = images.map((image) => (
+    image.complete
+      ? Promise.resolve()
+      : new Promise((resolve) => {
+          image.addEventListener("load", resolve, { once: true });
+          image.addEventListener("error", resolve, { once: true });
+        })
+  ));
+  const fontPromise = doc.fonts?.ready || Promise.resolve();
+  return Promise.race([
+    Promise.all([...linkPromises, ...imagePromises, fontPromise]),
+    new Promise((resolve) => window.setTimeout(resolve, 4000))
+  ]).then(() => new Promise((resolve) => frame.contentWindow.requestAnimationFrame(resolve)));
 }
 
 function uniqueManualFieldId(title, config) {
