@@ -93,6 +93,20 @@ const DEFAULT_WEDDING_PARTY_DETAILS = {
 };
 const GODMOTHER_DRESS_OPTIONS = ["Vestido longo", "Vestido curto", "Vestido midi", "Sem brilho", "Sem estampa"];
 const MANUAL_DESIGN_TEMPLATES = [
+  ["floranny", "Floranny", "Floral claro", "floranny", ["cover", "calendar", "palette"]],
+  ["seaSunset", "Agua do Mar - Por do sol", "Maritimo", "sea-sunset", ["info", "calendar", "palette"]],
+  ["seaAlgae", "Agua do Mar - Algas marinhas", "Maritimo", "sea-algae", ["info", "palette", "thanks"]],
+  ["seaShells", "Agua do Mar - Conchas no oceano", "Maritimo", "sea-shells", ["cover", "info", "timeline"]],
+  ["floralNight", "Floral Night", "Floral escuro", "floral-night", ["cover", "palette", "thanks"]],
+  ["floralRustic", "Floral Rustico", "Floral rustico", "floral-rustic", ["info", "palette", "rules"]],
+  ["floralClean", "Floral Clean", "Floral clean", "floral-clean", ["cover", "info", "thanks"]],
+  ["floralElegance", "Floral Ellegance", "Floral vinho", "floral-elegance", ["cover", "info", "palette"]],
+  ["classicFrame", "Classico", "Moldura", "classic-frame", ["info", "calendar", "rules"]],
+  ["rusticLeaves", "Rustico", "Folhagem", "rustic-leaves", ["cover", "calendar", "palette"]],
+  ["romanticGarden", "Romantico", "Jardim", "romantic-garden", ["cover", "info", "thanks"]],
+  ["modernLine", "Moderno", "Linear", "modern-line", ["info", "timeline", "rules"]],
+  ["watercolor", "Aquarela", "Aquarela", "watercolor", ["cover", "calendar", "palette"]],
+  ["painting", "Pintura", "Pintura suave", "painting", ["cover", "info", "thanks"]],
   ["classicFloralA", "Clássico floral 1", "Clássico floral", "floral", ["calendar", "info", "palette"]],
   ["classicFloralB", "Clássico floral 2", "Clássico floral", "floral", ["info", "palette", "thanks"]],
   ["minimalA", "Elegante minimalista 1", "Elegante minimalista", "minimal", ["cover", "info", "rules"]],
@@ -106,7 +120,7 @@ const MANUAL_DESIGN_TEMPLATES = [
 ].map(([id, name, category, style, blocks]) => ({ id, name, category, style, blocks }));
 const DEFAULT_MANUAL_DESIGN = {
   guideType: "godmothers",
-  templateId: "classicFloralA",
+  templateId: "floranny",
   backgroundColor: "#fffaf5",
   accentColor: "#7a3f5c",
   titleColor: "#2b2420",
@@ -2158,12 +2172,7 @@ function renderManualDesigner() {
         ${renderManualSizeControl("Textos internos", "contentTextSize", design.contentTextSize)}
       </div>
       <div class="manual-template-list">
-        ${MANUAL_DESIGN_TEMPLATES.map((item) => `
-          <button class="manual-template-chip ${item.id === design.templateId ? "active" : ""}" type="button" data-manual-template="${escapeHtml(item.id)}">
-            <span>${escapeHtml(item.name)}</span>
-            <small>${escapeHtml(item.category)}</small>
-          </button>
-        `).join("")}
+        ${MANUAL_DESIGN_TEMPLATES.map((item) => renderManualTemplateChip(item, item.id === design.templateId)).join("")}
       </div>
       <div class="manual-preview-shell">
         ${renderManualPreview(design, template)}
@@ -2174,6 +2183,22 @@ function renderManualDesigner() {
 
 function manualTemplate(id) {
   return MANUAL_DESIGN_TEMPLATES.find((template) => template.id === id) || MANUAL_DESIGN_TEMPLATES[0];
+}
+
+function renderManualTemplateChip(template, isActive) {
+  return `
+    <button class="manual-template-chip ${isActive ? "active" : ""}" type="button" data-manual-template="${escapeHtml(template.id)}">
+      <span>${escapeHtml(template.name)}</span>
+      <div class="manual-template-thumb template-${escapeHtml(template.style)}" aria-hidden="true">
+        <div class="thumb-card">
+          <strong>Queridos familiares e amigos,</strong>
+          <p>Para que o nosso evento seja ainda melhor, contamos com voces.</p>
+          <em>${escapeHtml(manualCoupleName())}</em>
+        </div>
+      </div>
+      <small>${escapeHtml(template.category)}</small>
+    </button>
+  `;
 }
 
 function renderManualHexControl(label, field, value) {

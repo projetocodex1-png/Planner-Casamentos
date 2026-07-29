@@ -1693,22 +1693,22 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 }
 
 .manual-template-list {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .manual-template-chip {
   display: grid;
-  gap: 3px;
-  min-width: 148px;
-  padding: 10px;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-strong);
   color: var(--ink);
-  text-align: left;
+  overflow: hidden;
+  text-align: center;
 }
 
 .manual-template-chip.active {
@@ -1717,11 +1717,59 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 }
 
 .manual-template-chip span {
+  padding: 12px 12px 0;
   font-weight: 900;
 }
 
 .manual-template-chip small {
+  padding: 0 12px 12px;
   color: var(--muted);
+}
+
+.manual-template-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1.45 / 1;
+  margin: 0 12px;
+  overflow: hidden;
+  border: 1px solid #c8d0d4;
+  background: #fff;
+}
+
+.manual-template-thumb::before,
+.manual-template-thumb::after,
+.manual-print-page::before,
+.manual-print-page::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.thumb-card {
+  position: relative;
+  z-index: 1;
+  width: 72%;
+  display: grid;
+  gap: 8px;
+  color: #4b4b4b;
+  text-align: center;
+}
+
+.thumb-card strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.78rem;
+}
+
+.thumb-card p {
+  margin: 0;
+  font-size: 0.52rem;
+  line-height: 1.35;
+}
+
+.thumb-card em {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 0.78rem;
 }
 
 .manual-preview-shell {
@@ -1741,6 +1789,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 }
 
 .manual-print-page {
+  position: relative;
   min-height: 735px;
   padding: 46px;
   border: 1px solid rgba(39, 34, 31, 0.13);
@@ -1761,6 +1810,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .manual-cover-panel > * {
   grid-column: 2;
+  position: relative;
+  z-index: 1;
+}
+
+.manual-content-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .manual-cover-panel h2,
@@ -1930,6 +1986,183 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--manual-accent) 16%, transparent) 0 10px, transparent 10px),
     var(--manual-bg);
+}
+
+.template-floranny,
+.template-floranny .manual-print-page {
+  background:
+    radial-gradient(circle at 8% 8%, rgba(123, 190, 218, 0.18), transparent 17%),
+    radial-gradient(circle at 92% 12%, rgba(185, 87, 111, 0.18), transparent 18%),
+    radial-gradient(circle at 12% 92%, rgba(123, 190, 218, 0.16), transparent 18%),
+    #fffefe;
+}
+
+.template-floranny::before,
+.template-floranny .manual-print-page::before {
+  inset: 0;
+  background:
+    radial-gradient(circle at 7% 8%, #9fd2e8 0 7px, transparent 8px),
+    radial-gradient(circle at 12% 6%, #b78fd0 0 6px, transparent 7px),
+    radial-gradient(circle at 91% 10%, #9fd2e8 0 8px, transparent 9px),
+    radial-gradient(circle at 86% 7%, #c986af 0 6px, transparent 7px),
+    radial-gradient(circle at 8% 91%, #9fd2e8 0 8px, transparent 9px),
+    radial-gradient(circle at 93% 92%, #b78fd0 0 7px, transparent 8px);
+}
+
+.template-sea-sunset,
+.template-sea-sunset .manual-print-page {
+  background:
+    radial-gradient(circle at 74% 4%, rgba(238, 141, 119, 0.26), transparent 23%),
+    radial-gradient(circle at 12% 92%, rgba(238, 141, 119, 0.16), transparent 18%),
+    #fffaf7;
+}
+
+.template-sea-sunset::after,
+.template-sea-sunset .manual-print-page::after,
+.template-sea-algae::after,
+.template-sea-algae .manual-print-page::after,
+.template-sea-shells::after,
+.template-sea-shells .manual-print-page::after {
+  right: 4%;
+  bottom: -5%;
+  width: 28%;
+  aspect-ratio: 1;
+  border: 5px solid color-mix(in srgb, var(--manual-accent) 65%, #7baea4);
+  border-radius: 50% 50% 0 50%;
+  opacity: 0.72;
+  transform: rotate(45deg);
+}
+
+.template-sea-algae,
+.template-sea-algae .manual-print-page {
+  background:
+    radial-gradient(circle at 80% 10%, rgba(127, 187, 164, 0.24), transparent 27%),
+    linear-gradient(180deg, #f2fff9, #ffffff 64%);
+}
+
+.template-sea-shells,
+.template-sea-shells .manual-print-page {
+  background:
+    radial-gradient(circle at 16% 12%, rgba(137, 197, 222, 0.22), transparent 22%),
+    linear-gradient(180deg, #f3fbff, #ffffff 64%);
+}
+
+.template-floral-night,
+.template-floral-night .manual-print-page {
+  background:
+    radial-gradient(circle at 20% 96%, rgba(235, 173, 98, 0.28), transparent 20%),
+    radial-gradient(circle at 82% 0%, rgba(255, 224, 183, 0.16), transparent 18%),
+    #061527;
+}
+
+.template-floral-night .thumb-card,
+.template-floral-night .manual-print-page,
+.template-floral-elegance .thumb-card,
+.template-floral-elegance .manual-print-page {
+  color: #fff;
+}
+
+.template-floral-night .manual-cover-panel h2,
+.template-floral-night .manual-print-preview h3,
+.template-floral-night .manual-print-preview p,
+.template-floral-night .manual-cover-panel strong,
+.template-floral-elegance .manual-cover-panel h2,
+.template-floral-elegance .manual-print-preview h3,
+.template-floral-elegance .manual-print-preview p,
+.template-floral-elegance .manual-cover-panel strong {
+  color: #fff7ec;
+}
+
+.template-floral-rustic,
+.template-floral-rustic .manual-print-page,
+.template-floral-clean,
+.template-floral-clean .manual-print-page {
+  background:
+    radial-gradient(circle at 50% -8%, rgba(213, 130, 91, 0.18), transparent 18%),
+    #fffefd;
+}
+
+.template-floral-rustic::before,
+.template-floral-rustic .manual-print-page::before,
+.template-floral-clean::before,
+.template-floral-clean .manual-print-page::before,
+.template-floral-elegance::before,
+.template-floral-elegance .manual-print-page::before {
+  inset: -3% 0 auto 0;
+  height: 24%;
+  background:
+    radial-gradient(circle at 38% 22%, #f2b49b 0 12px, transparent 13px),
+    radial-gradient(circle at 45% 16%, #f7dcc2 0 14px, transparent 15px),
+    radial-gradient(circle at 54% 20%, #e48973 0 10px, transparent 11px),
+    radial-gradient(ellipse at 42% 50%, #7e936b 0 12px, transparent 13px),
+    radial-gradient(ellipse at 59% 50%, #b09145 0 12px, transparent 13px);
+}
+
+.template-floral-elegance,
+.template-floral-elegance .manual-print-page {
+  background:
+    radial-gradient(circle at 86% 4%, rgba(255, 225, 209, 0.12), transparent 16%),
+    #801418;
+}
+
+.template-classic-frame,
+.template-classic-frame .manual-print-page,
+.template-modern-line,
+.template-modern-line .manual-print-page {
+  background: #fff;
+}
+
+.template-classic-frame .thumb-card,
+.template-classic-frame .manual-print-page,
+.template-modern-line .thumb-card,
+.template-modern-line .manual-print-page {
+  box-shadow: inset 0 0 0 2px rgba(62, 62, 62, 0.36), inset 0 0 0 12px #fff, inset 0 0 0 14px rgba(62, 62, 62, 0.22);
+}
+
+.template-rustic-leaves,
+.template-rustic-leaves .manual-print-page {
+  background:
+    radial-gradient(ellipse at 5% 9%, rgba(105, 145, 86, 0.22), transparent 18%),
+    radial-gradient(ellipse at 94% 91%, rgba(105, 145, 86, 0.2), transparent 20%),
+    #fff;
+}
+
+.template-rustic-leaves::before,
+.template-rustic-leaves .manual-print-page::before {
+  left: -3%;
+  top: 2%;
+  width: 26%;
+  height: 34%;
+  background:
+    radial-gradient(ellipse at 35% 20%, #86a977 0 10px, transparent 11px),
+    radial-gradient(ellipse at 58% 36%, #b3c9a0 0 9px, transparent 10px),
+    radial-gradient(ellipse at 30% 58%, #8aa875 0 8px, transparent 9px);
+  transform: rotate(-22deg);
+}
+
+.template-romantic-garden,
+.template-romantic-garden .manual-print-page {
+  background:
+    linear-gradient(90deg, rgba(228, 127, 101, 0.8) 0 2px, transparent 2px calc(100% - 2px), rgba(228, 127, 101, 0.8) calc(100% - 2px)),
+    linear-gradient(0deg, rgba(228, 127, 101, 0.8) 0 2px, transparent 2px calc(100% - 2px), rgba(228, 127, 101, 0.8) calc(100% - 2px)),
+    radial-gradient(circle at 92% 12%, rgba(229, 126, 91, 0.22), transparent 20%),
+    #fff;
+}
+
+.template-watercolor,
+.template-watercolor .manual-print-page {
+  background:
+    radial-gradient(circle at 20% 7%, rgba(250, 198, 210, 0.36), transparent 24%),
+    radial-gradient(circle at 86% 92%, rgba(250, 198, 210, 0.24), transparent 22%),
+    #fff;
+}
+
+.template-painting,
+.template-painting .manual-print-page {
+  background:
+    radial-gradient(ellipse at 70% 90%, rgba(222, 113, 128, 0.28), transparent 22%),
+    radial-gradient(ellipse at 86% 88%, rgba(122, 190, 187, 0.2), transparent 20%),
+    #fff;
 }
 
 .wedding-party-grid {
