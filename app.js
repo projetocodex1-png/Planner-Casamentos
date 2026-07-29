@@ -2277,12 +2277,13 @@ function renderManualPreviewField(name, title, example, context) {
   const { manual, colors, design } = context;
   const text = manual[name] || example || "";
   const inspirationField = manualInspirationAttachmentField(design.guideType);
+  const isInspirations = name === "inspirations";
   return `
     <div class="manual-preview-field">
       ${renderPreviewTitle(title)}
-      <p>${formatMultilineText(text || "Campo em branco.")}</p>
+      ${isInspirations ? "" : `<p>${formatMultilineText(text || "Campo em branco.")}</p>`}
       ${name === "weddingInfo" ? `<div class="manual-preview-calendar">${renderWeddingMiniCalendar(state.wedding?.date, normalizeWeddingPartyDetails(state.weddingPartyDetails || {}).calendarMarker)}</div>` : ""}
-      ${name === "inspirations" ? renderManualPreviewAttachments(inspirationField) : ""}
+      ${isInspirations ? renderManualPreviewAttachments(inspirationField) : ""}
       ${name === (design.guideType === "godfathers" ? "godfatherDressCode" : "godmotherDressCode") ? renderManualPreviewPalette(colors) : ""}
     </div>
   `;
@@ -2300,7 +2301,21 @@ function manualCoupleName() {
 }
 
 function renderManualPreviewPalette(colors) {
-  return `<div class="manual-preview-swatches">${colors.slice(0, 6).map((item) => `<span style="background:${escapeHtml(item.color || item.colorHex || "#f3e8e0")}"></span>`).join("") || "<span></span><span></span><span></span>"}</div>`;
+  const items = colors.slice(0, 6);
+  if (!items.length) return "";
+  return `
+    <div class="manual-preview-palette-items">
+      ${items.map((item) => `
+        <div class="manual-preview-color-item">
+          <span style="background:${escapeHtml(item.color || item.colorHex || "#f3e8e0")}"></span>
+          <div>
+            <strong>${escapeHtml(item.usage || "Uso nao informado")}</strong>
+            <small>${escapeHtml(item.colorName || item.name || "Cor sem nome")}</small>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
 }
 
 function renderManualPreviewAttachments(field) {
@@ -2364,7 +2379,7 @@ function exportManualPdf() {
       <head>
         <meta charset="utf-8">
         <title>Manual dos padrinhos</title>
-        <link rel="stylesheet" href="styles.css?v=20260729c">
+        <link rel="stylesheet" href="styles.css?v=20260729d">
       </head>
       <body class="manual-printing manual-export-window">
         <div id="manualPrintRoot">${preview.outerHTML}</div>

@@ -1923,7 +1923,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   font-size: 1.1rem;
 }
 
-.manual-preview-swatches {
+.manual-preview-swatches,
+.manual-preview-palette-items {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1936,6 +1937,42 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   border: 1px solid rgba(39, 34, 31, 0.16);
   border-radius: 8px;
   background: color-mix(in srgb, var(--manual-accent) 28%, #fff);
+}
+
+.manual-preview-palette-items {
+  display: grid;
+  gap: 7px;
+}
+
+.manual-preview-color-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  break-inside: avoid;
+}
+
+.manual-preview-color-item > span {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(39, 34, 31, 0.16);
+  border-radius: 7px;
+}
+
+.manual-preview-color-item strong,
+.manual-preview-color-item small {
+  display: block;
+  line-height: 1.16;
+}
+
+.manual-preview-color-item strong {
+  color: var(--manual-title);
+  font-size: 0.8rem;
+}
+
+.manual-preview-color-item small {
+  color: color-mix(in srgb, var(--manual-title) 70%, #756c66);
+  font-size: 0.72rem;
 }
 
 .manual-preview-calendar .mini-calendar {
@@ -2470,10 +2507,16 @@ td:last-child { text-align: right; white-space: nowrap; }
     break-before: page;
   }
 
+  .manual-content-panel {
+    height: 210mm;
+  }
+
   .manual-content-columns {
     column-count: 3;
     column-gap: 8mm;
     column-fill: auto;
+    height: 154mm;
+    overflow: hidden;
   }
 
   .manual-preview-field {
@@ -2490,9 +2533,32 @@ td:last-child { text-align: right; white-space: nowrap; }
   }
 
   .manual-preview-calendar .mini-calendar {
-    max-width: 42mm;
-    padding: 2mm;
-    font-size: 7.5pt;
+    max-width: 36mm;
+    padding: 1.8mm;
+    font-size: 6.8pt;
+  }
+
+  .manual-preview-calendar .mini-calendar-weekdays,
+  .manual-preview-calendar .mini-calendar-grid {
+    gap: 1px;
+  }
+
+  .manual-preview-color-item {
+    grid-template-columns: 7mm minmax(0, 1fr);
+    gap: 2mm;
+  }
+
+  .manual-preview-color-item > span {
+    width: 7mm;
+    height: 7mm;
+  }
+
+  .manual-preview-color-item strong {
+    font-size: 7.2pt;
+  }
+
+  .manual-preview-color-item small {
+    font-size: 6.5pt;
   }
 
   .mini-calendar-grid .date-heart {
