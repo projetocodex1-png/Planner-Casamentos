@@ -660,6 +660,39 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .module-tools input, .module-tools select { width: min(100%, 240px); }
 
+.guest-option-manager {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: -2px 0 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 250, 245, 0.72);
+}
+
+.guest-option-manager label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.guest-option-row {
+  display: flex;
+  gap: 8px;
+}
+
+.guest-option-row input {
+  min-width: 0;
+}
+
+.compact-action {
+  min-height: 44px;
+  padding-inline: 12px;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2443,6 +2476,7 @@ td:last-child { text-align: right; white-space: nowrap; }
   .topbar-actions { width: 100%; justify-content: stretch; }
   .topbar-actions button { flex: 1 1 150px; }
   .metric-grid, .card-grid, .form-grid, .budget-summary, .budget-card-grid, .font-card-grid, .color-card-grid, .status-tabs { grid-template-columns: 1fr; }
+  .guest-option-manager { grid-template-columns: 1fr; }
   .kanban-board { grid-template-columns: 1fr; }
   .payment-calendar-header { flex-direction: column; }
   .calendar-controls { width: 100%; justify-content: space-between; }

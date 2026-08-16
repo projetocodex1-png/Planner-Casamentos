@@ -26,6 +26,7 @@ const DEFAULT_GUEST_ROLES = [
   "Dama de honra",
   "Convidado comum"
 ];
+const DEFAULT_GUEST_TYPES = ["Adulto", "Crianca"];
 
 const RSVP_STATUSES = ["A enviar convite", "Pendente", "Confirmado", "Não vai"];
 const DEFAULT_MUSIC_MOMENTS = ["Entrada", "Cerimonia", "Aliancas", "Cumprimentos", "Primeira danca", "Festa", "Encerramento"];
@@ -340,6 +341,7 @@ const seedState = {
   identityColorGroups: ["Decoracao", "Noiva", "Noivo", "Pais", "Madrinhas", "Padrinhos"],
   guestGroups: DEFAULT_GUEST_GROUPS,
   guestRoles: DEFAULT_GUEST_ROLES,
+  guestTypes: DEFAULT_GUEST_TYPES,
   guestView: {
     groupBy: "none"
   },
@@ -1007,6 +1009,7 @@ function renderModule(key) {
       ${key === "guests" ? '<button class="secondary-action" type="button" data-import-guests>Importar CSV</button><input class="hidden" type="file" accept=".csv" data-import-file>' : ""}
       ${key === "vendors" ? renderVendorViewControls() : ""}
     </div>
+    ${key === "guests" ? renderGuestOptionManager() : ""}
     ${renderModuleContent(key, items)}
   `;
 
@@ -1034,6 +1037,17 @@ function renderModule(key) {
       state.guestView = { ...(state.guestView || {}), [event.target.dataset.guestView]: event.target.value };
       saveState();
       renderModule("guests");
+    });
+  });
+  els.moduleView.querySelectorAll("[data-add-guest-option]").forEach((button) => {
+    button.addEventListener("click", () => addGuestOptionFromInput(button.dataset.addGuestOption));
+  });
+  els.moduleView.querySelectorAll("[data-guest-option-input]").forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addGuestOptionFromInput(input.dataset.guestOptionInput);
+      }
     });
   });
   els.moduleView.querySelector("[data-add-guest-column]")?.addEventListener("click", openGuestColumnDialog);
@@ -1149,6 +1163,27 @@ function renderGuestViewControls() {
       <option value="role" ${view.groupBy === "role" ? "selected" : ""}>Organizar: papel</option>
       <option value="rsvp" ${view.groupBy === "rsvp" ? "selected" : ""}>Organizar: RSVP</option>
     </select>
+  `;
+}
+
+function renderGuestOptionManager() {
+  return `
+    <section class="guest-option-manager">
+      ${renderGuestOptionAdder("guestGroups", "Novo grupo", "Ex: Familia da madrinha")}
+      ${renderGuestOptionAdder("guestRoles", "Novo papel", "Ex: Celebrante")}
+      ${renderGuestOptionAdder("guestTypes", "Novo tipo", "Ex: Adolescente")}
+    </section>
+  `;
+}
+
+function renderGuestOptionAdder(key, label, placeholder) {
+  return `
+    <label>${escapeHtml(label)}
+      <div class="guest-option-row">
+        <input type="text" placeholder="${escapeHtml(placeholder)}" data-guest-option-input="${escapeHtml(key)}">
+        <button class="secondary-action compact-action" type="button" data-add-guest-option="${escapeHtml(key)}">Adicionar</button>
+      </div>
+    </label>
   `;
 }
 
@@ -1442,7 +1477,7 @@ function guestInlineFields() {
 
 function renderGuestInlineCell(guest, field) {
   if (field === "rsvp") return renderGuestInlineSelect(guest, field, RSVP_STATUSES, normalizeGuestRsvp(guest.rsvp), chipColor(guest.rsvp));
-  if (field === "guestType") return renderGuestInlineSelect(guest, field, ["Adulto", "Crianca"], guest.guestType || "Adulto");
+  if (field === "guestType") return renderGuestInlineSelect(guest, field, state.guestTypes || DEFAULT_GUEST_TYPES, guest.guestType || "Adulto");
   if (field === "group") return renderGuestInlineSelect(guest, field, state.guestGroups || DEFAULT_GUEST_GROUPS, guest.group || "Amigos em comum", guestGroupTone(guest.group));
   if (field === "role") return renderGuestInlineSelect(guest, field, state.guestRoles || DEFAULT_GUEST_ROLES, guest.role || "Convidado comum");
   if (field === "phone") return `<div class="inline-link-cell">${guest.phone ? formatWhatsAppLink(guest.phone) : '<span class="muted-note">Sem WhatsApp</span>'}<button class="icon-button icon-only edit action-link" type="button" data-edit="${escapeHtml(guest.id)}" aria-label="Editar WhatsApp">${iconSvg("edit")}</button></div>`;
@@ -1464,6 +1499,21 @@ function renderGuestInlineSelect(guest, field, options, value, tone = "") {
       ${options.map((option) => `<option value="${escapeHtml(option)}" ${value === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
     </select>
   `;
+}
+
+function addGuestOptionFromInput(key) {
+  const input = els.moduleView.querySelector(`[data-guest-option-input="${key}"]`);
+  const value = String(input?.value || "").trim();
+  if (!value) return;
+  const normalized = key === "guestGroups"
+    ? normalizeGuestGroup(value)
+    : key === "guestRoles"
+      ? normalizeGuestRole(value)
+      : normalizeGuestType(value);
+  addGuestOption(key, normalized);
+  if (input) input.value = "";
+  saveState();
+  renderModule("guests");
 }
 
 function guestGroupTone(group) {
@@ -3036,7 +3086,7 @@ function renderGuestForm(item) {
     <label data-new-guest-role>Novo papel<input name="newRole" value="${escapeHtml(customRole)}" placeholder="Ex: Celebrante"></label>
     <label>Tipo
       <select name="guestType" required>
-        ${["Adulto", "Crianca"].map((option) => `<option ${((item.guestType || "Adulto") === option) ? "selected" : ""}>${option}</option>`).join("")}
+        ${(state.guestTypes || DEFAULT_GUEST_TYPES).map((option) => `<option ${((item.guestType || "Adulto") === option) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
       </select>
     </label>
     <label>RSVP
@@ -3120,6 +3170,8 @@ async function saveGuestItem(form) {
   if (!role || role === "Novo papel") role = "Convidado comum";
   addGuestOption("guestGroups", group);
   addGuestOption("guestRoles", role);
+  const guestType = normalizeGuestType(form.get("guestType"));
+  addGuestOption("guestTypes", guestType);
   const previous = editing.id ? state.data.guests.find((entry) => entry.id === editing.id) : {};
   const extra = {};
   (state.guestExtraColumns || []).forEach((column) => {
@@ -3130,7 +3182,7 @@ async function saveGuestItem(form) {
     name: String(form.get("name") || "").trim(),
     group,
     role,
-    guestType: form.get("guestType") || "Adulto",
+    guestType,
     rsvp: normalizeGuestRsvp(form.get("rsvp")),
     table: previous?.table || "",
     tableId: previous?.tableId || "",
@@ -3558,14 +3610,16 @@ function importGuestsCsv(event) {
       .map((row) => {
       const group = normalizeGuestGroup(row.group || "Amigos em comum");
       const role = normalizeGuestRole(row.role || "Convidado comum");
+      const guestType = normalizeGuestType(row.guestType || "Adulto");
       addGuestOption("guestGroups", group);
       addGuestOption("guestRoles", role);
+      addGuestOption("guestTypes", guestType);
       return {
         id: uid(),
         name: row.name,
         group,
         role,
-        guestType: row.guestType || "Adulto",
+        guestType,
         rsvp: normalizeGuestRsvp(row.rsvp),
         table: "",
         phone: row.phone || "",
@@ -3910,7 +3964,12 @@ function defaultChecklistTasks() {
 
 function addGuestOption(key, value) {
   if (!value) return;
-  state[key] ||= key === "guestGroups" ? [...DEFAULT_GUEST_GROUPS] : [...DEFAULT_GUEST_ROLES];
+  const defaults = {
+    guestGroups: DEFAULT_GUEST_GROUPS,
+    guestRoles: DEFAULT_GUEST_ROLES,
+    guestTypes: DEFAULT_GUEST_TYPES
+  };
+  state[key] ||= [...(defaults[key] || [])];
   if (!state[key].includes(value)) state[key].push(value);
 }
 
@@ -3990,9 +4049,11 @@ function normalizeGuestRsvp(value) {
 }
 
 function normalizeGuestType(value) {
-  const key = normalizeHeader(value);
+  const original = String(value || "").trim();
+  const key = normalizeHeader(original);
+  if (["adulto", "adult", "maior"].includes(key)) return "Adulto";
   if (["crianca", "criança", "infantil", "kids", "kid", "child"].includes(key)) return "Crianca";
-  return "Adulto";
+  return findDefaultGuestOption(DEFAULT_GUEST_TYPES, original) || original || "Adulto";
 }
 
 function normalizeGuestExtra(extra = {}, columns = []) {
@@ -4066,8 +4127,10 @@ function normalizeState(nextState) {
   }));
   const dataGuestGroups = nextState.data.guests.map((item) => item.group).filter(Boolean);
   const dataGuestRoles = nextState.data.guests.map((item) => item.role).filter(Boolean);
+  const dataGuestTypes = nextState.data.guests.map((item) => item.guestType).filter(Boolean);
   nextState.guestGroups = [...new Set([...DEFAULT_GUEST_GROUPS, ...(nextState.guestGroups || []), ...dataGuestGroups])];
   nextState.guestRoles = [...new Set([...DEFAULT_GUEST_ROLES, ...(nextState.guestRoles || []), ...dataGuestRoles])];
+  nextState.guestTypes = [...new Set([...DEFAULT_GUEST_TYPES, ...(nextState.guestTypes || []), ...dataGuestTypes])];
   nextState.guestView = {
     groupBy: "none",
     ...(nextState.guestView || {})
