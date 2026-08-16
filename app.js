@@ -407,7 +407,9 @@ const els = {
   weddingName: document.querySelector("#weddingName"),
   newButton: document.querySelector("#newButton"),
   settingsButton: document.querySelector("#settingsButton"),
-  exportButton: document.querySelector("#exportButton")
+  exportButton: document.querySelector("#exportButton"),
+  importButton: document.querySelector("#importButton"),
+  importFileInput: document.querySelector("#importFileInput")
 };
 
 init();
@@ -671,6 +673,9 @@ function wireShell() {
     exportCsv(key);
   });
 
+  els.importButton.addEventListener("click", () => els.importFileInput.click());
+  els.importFileInput.addEventListener("change", importGuestsCsv);
+
   els.itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const key = editing.key;
@@ -835,9 +840,11 @@ function render() {
   els.dashboardView.classList.toggle("active", isDashboard);
   els.moduleView.classList.toggle("active", !isDashboard);
   els.newButton.textContent = isDashboard ? "Nova tarefa" : `Adicionar ${moduleConfig[state.currentView].title}`;
-  els.exportButton.textContent = isDashboard ? "Exportar checklist" : "Exportar CSV";
+  els.exportButton.textContent = isDashboard ? "Exportar checklist" : "Exportar lista";
+  els.importButton.textContent = "Importar lista";
   els.settingsButton.classList.toggle("hidden", !isDashboard);
   els.newButton.classList.toggle("hidden", isReadOnlyView);
+  els.importButton.classList.toggle("hidden", state.currentView !== "guests");
 
   if (isDashboard) renderDashboard();
   else renderModule(state.currentView);
@@ -1005,8 +1012,6 @@ function renderModule(key) {
       <input type="search" placeholder="Buscar" value="${escapeHtml(state.filters[key]?.query || "")}" data-filter-query>
       ${filters.map((field) => renderFilter(key, field)).join("")}
       ${key === "guests" ? renderGuestViewControls() : ""}
-      ${key === "guests" ? '<button class="secondary-action" type="button" data-add-guest-column>Adicionar coluna</button>' : ""}
-      ${key === "guests" ? '<button class="secondary-action" type="button" data-import-guests>Importar CSV</button><input class="hidden" type="file" accept=".csv" data-import-file>' : ""}
       ${key === "vendors" ? renderVendorViewControls() : ""}
     </div>
     ${key === "guests" ? renderGuestOptionManager() : ""}
@@ -1101,12 +1106,6 @@ function renderModule(key) {
   if (key === "budget") wireBudgetInputs();
   if (key === "tables") wireTablePlanner();
 
-  const importButton = els.moduleView.querySelector("[data-import-guests]");
-  if (importButton) {
-    const importFile = els.moduleView.querySelector("[data-import-file]");
-    importButton.addEventListener("click", () => importFile.click());
-    importFile.addEventListener("change", importGuestsCsv);
-  }
 }
 
 function renderModuleContent(key, items) {
@@ -1443,7 +1442,11 @@ function renderGuestInlineTable(items) {
   return `
     <div class="table-wrap guest-inline-wrap">
       <table class="guest-inline-table">
-        <thead><tr>${fields.map((field) => `
+        <thead><tr>${fields.map((field) => field === "__addColumn" ? `
+          <th class="add-column-heading">
+            <button class="icon-button icon-only add action-link" type="button" data-add-guest-column aria-label="Adicionar coluna">${iconSvg("plus")}</button>
+          </th>
+        ` : `
           <th>
             <button class="table-sort-button ${sort.field === field ? "active" : ""}" type="button" data-sort-field="${field}" aria-label="Ordenar por ${escapeHtml(labelForField(field))}">
               <span>${escapeHtml(labelForField(field))}</span>
@@ -1470,12 +1473,14 @@ function guestInlineFields() {
     "guestType",
     "group",
     "role",
+    "__addColumn",
     "notes",
     ...(state.guestExtraColumns || []).map((column) => `extra:${column.id}`)
   ];
 }
 
 function renderGuestInlineCell(guest, field) {
+  if (field === "__addColumn") return "";
   if (field === "rsvp") return renderGuestInlineSelect(guest, field, RSVP_STATUSES, normalizeGuestRsvp(guest.rsvp), chipColor(guest.rsvp));
   if (field === "guestType") return renderGuestInlineSelect(guest, field, state.guestTypes || DEFAULT_GUEST_TYPES, guest.guestType || "Adulto");
   if (field === "group") return renderGuestInlineSelect(guest, field, state.guestGroups || DEFAULT_GUEST_GROUPS, guest.group || "Amigos em comum", guestGroupTone(guest.group));
@@ -3629,6 +3634,7 @@ function importGuestsCsv(event) {
     });
     state.data.guests.push(...imported);
     await saveGuestState();
+    event.target.value = "";
     render();
   });
 }

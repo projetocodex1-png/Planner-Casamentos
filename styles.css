@@ -688,6 +688,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   min-width: 0;
 }
 
+.guest-inline-table .add-column-heading {
+  width: 58px;
+  text-align: center;
+}
+
+.guest-inline-table .add-column-heading button {
+  margin-inline: auto;
+}
+
 .compact-action {
   min-height: 44px;
   padding-inline: 12px;
