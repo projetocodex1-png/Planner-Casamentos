@@ -288,6 +288,7 @@ const moduleConfig = {
     fields: [
       ["description", "Descricao", "text", true],
       ["vendor", "Fornecedor", "text", false],
+      ["category", "Categoria", "text", true],
       ["amount", "Valor", "number", true],
       ["dueDate", "Vencimento", "date", true],
       ["status", "Status", "select", true, ["Pendente", "Pago", "Atrasado"]],
@@ -305,10 +306,11 @@ const moduleConfig = {
       ["date", "Data", "date", true],
       ["time", "Hora", "time", false],
       ["vendor", "Fornecedor", "text", false],
+      ["status", "Status", "select", true, ["Agendada", "Realizada", "Cancelada", "Reagendada"]],
       ["reminder", "Lembrete", "select", true, ["Nenhum", "1 dia antes", "3 dias antes", "1 semana antes"]],
       ["notes", "Observacoes", "textarea", false]
     ],
-    filters: ["reminder"]
+    filters: ["status"]
   },
   identity: {
     title: "Identidade",
@@ -757,6 +759,20 @@ function wireShell() {
       render();
       return;
     }
+    if (key === "payments") {
+      savePaymentItem(form);
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
+    if (key === "appointments") {
+      saveAppointmentItem(form);
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
     if (key === "guests") {
       if (await saveGuestItem(form) === false) return;
       els.itemDialog.close();
@@ -987,13 +1003,14 @@ function renderDashboard() {
         ${confirmed || guests.length ? `<div class="guest-summary"><strong>${confirmed}</strong><span>confirmados de ${guests.length} convidados</span></div>` : ""}
         <ul class="quick-list">${state.data.appointments
           .slice()
+          .filter((item) => !["Realizada", "Cancelada"].includes(item.status))
           .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
           .slice(0, 5)
           .map((item) => `
             <li>
               <span class="chip rose">${formatDate(item.date)}</span>
               <span>${item.title}</span>
-              <span>${item.time || ""}</span>
+              <span class="status-pill">${item.status || "Agendada"}</span>
             </li>
           `).join("")}</ul>
       </section>
@@ -1355,11 +1372,13 @@ function renderChecklistBoard(items) {
 }
 
 function renderBudgetCards(items) {
-  const planned = Number(state.wedding?.budget) || sum(items, "planned");
-  const actual = sum(items, "actual");
+  const allBudgetItems = state.data.budget;
+  const planned = Number(state.wedding?.budget) || sum(allBudgetItems, "planned");
+  const actual = sum(allBudgetItems, "actual");
   const paid = paidPaymentsTotal();
   const available = planned - actual;
-  const used = planned ? Math.min(100, Math.round((paid / planned) * 100)) : 0;
+  const remaining = Math.max(0, actual - paid);
+  const used = planned ? Math.min(100, Math.round((actual / planned) * 100)) : 0;
   if (!items.length) return emptyPanel();
   return `
     <div class="budget-summary">
@@ -1367,27 +1386,36 @@ function renderBudgetCards(items) {
       ${metric("Orcamento real", money(actual), "Soma dos valores reais")}
       ${metric("Disponivel", money(available), "Previsto menos orcamento real")}
       ${metric("Total pago", money(paid), "Pagamentos marcados como Pago")}
+      ${metric("Falta pagar", money(remaining), "Orcamento real menos total pago")}
       <article class="metric-card wide budget-progress-card">
-        <span>Orcamento utilizado pelos pagamentos</span>
+        <span>Orcamento previsto comprometido</span>
         <strong>${used}%</strong>
         <div class="progress-rail"><div class="progress-bar" style="width:${used}%"></div></div>
       </article>
     </div>
     <div class="budget-card-grid">
-      ${items.map((item) => `
+      ${items.map((item) => {
+        const categoryPaid = paidPaymentsForBudgetCategory(item.category);
+        const categoryRemaining = Math.max(0, Number(item.actual || 0) - categoryPaid);
+        return `
         <article class="budget-card">
           <header>
             <h3>${escapeHtml(item.category)}</h3>
             <span class="chip ${chipColor(item.status)}">${escapeHtml(item.status)}</span>
           </header>
           <p>${Number(item.share) || 0}% base - ${money(item.planned)} sugerido</p>
-          <label>
-            Real
-            <input data-budget-actual="${item.id}" type="text" inputmode="numeric" value="${money(item.actual)}" placeholder="R$ 0,00">
-          </label>
+          <div class="budget-card-values">
+            <label>
+              Total real
+              <input data-budget-actual="${item.id}" type="text" inputmode="numeric" value="${money(item.actual)}" placeholder="R$ 0,00">
+            </label>
+            <div><span>Valor pago</span><strong>${money(categoryPaid)}</strong></div>
+            <div><span>Falta pagar</span><strong>${money(categoryRemaining)}</strong></div>
+          </div>
           ${actionButtons(item.id)}
         </article>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
   `;
 }
@@ -3055,6 +3083,16 @@ function openItemDialog(key, id = null, defaults = {}) {
     els.itemDialog.showModal();
     return;
   }
+  if (key === "payments") {
+    renderPaymentForm(item || {});
+    els.itemDialog.showModal();
+    return;
+  }
+  if (key === "appointments") {
+    renderAppointmentForm(item || {});
+    els.itemDialog.showModal();
+    return;
+  }
   if (key === "guests") {
     renderGuestForm(item || {});
     els.itemDialog.showModal();
@@ -3224,6 +3262,7 @@ function wireVendorForm() {
 }
 
 function saveVendorItem(form) {
+  const previous = editing.id ? state.data.vendors.find((entry) => entry.id === editing.id) : null;
   let category = form.get("category");
   const newCategory = String(form.get("newCategory") || "").trim();
   if (category === "Nova categoria" && newCategory) category = newCategory;
@@ -3239,9 +3278,151 @@ function saveVendorItem(form) {
     contract: form.get("contract") || "Sem contrato",
     notes: form.get("notes") || ""
   };
-  if (editing.id) state.data.vendors = state.data.vendors.map((entry) => entry.id === editing.id ? item : entry);
-  else state.data.vendors.push(item);
+  if (editing.id) {
+    state.data.vendors = state.data.vendors.map((entry) => entry.id === editing.id ? item : entry);
+    state.data.payments = state.data.payments.map((payment) => {
+      const isLinked = payment.vendorId === item.id || (!payment.vendorId && previous?.name && payment.vendor === previous.name);
+      return isLinked ? { ...payment, vendorId: item.id, vendor: item.name, category: item.category } : payment;
+    });
+    state.data.appointments = state.data.appointments.map((appointment) => {
+      const isLinked = appointment.vendorId === item.id || (!appointment.vendorId && previous?.name && appointment.vendor === previous.name);
+      return isLinked ? { ...appointment, vendorId: item.id, vendor: item.name } : appointment;
+    });
+  } else state.data.vendors.push(item);
   saveState();
+}
+
+function renderPaymentForm(item) {
+  const selectedVendorId = linkedVendorId(item);
+  const selectedVendor = state.data.vendors.find((vendor) => vendor.id === selectedVendorId);
+  const selectedCategory = item.category || selectedVendor?.category || "";
+  const categories = linkedFinancialCategories(selectedCategory);
+  document.querySelector("#itemDialogEyebrow").textContent = "Vencimentos";
+  document.querySelector("#itemDialogTitle").textContent = item.id ? "Editar pagamento" : "Adicionar pagamento";
+  els.itemFields.innerHTML = `
+    <label class="full-field">Descricao<input name="description" required value="${escapeHtml(item.description || "")}" placeholder="Ex: Segunda parcela"></label>
+    <label>Fornecedor
+      <select name="vendorId">
+        ${renderLinkedVendorOptions(item, selectedVendorId)}
+      </select>
+    </label>
+    <label>Categoria
+      <select name="category" required>
+        <option value="">Selecione</option>
+        ${categories.map((category) => `<option value="${escapeHtml(category)}" ${selectedCategory === category ? "selected" : ""}>${escapeHtml(category)}</option>`).join("")}
+      </select>
+      <small>Preenchida automaticamente ao escolher o fornecedor.</small>
+    </label>
+    <label>Valor<input name="amount" type="number" min="0" step="0.01" required value="${Number(item.amount) || 0}"></label>
+    <label>Vencimento<input name="dueDate" type="date" required value="${escapeHtml(item.dueDate || "")}"></label>
+    <label>Status
+      <select name="status" required>
+        ${["Pendente", "Pago", "Atrasado"].map((option) => `<option ${((item.status || "Pendente") === option) ? "selected" : ""}>${option}</option>`).join("")}
+      </select>
+    </label>
+    <label class="full-field">Observacoes<textarea name="notes">${escapeHtml(item.notes || "")}</textarea></label>
+  `;
+  wireLinkedVendorCategory();
+}
+
+function renderAppointmentForm(item) {
+  const selectedVendorId = linkedVendorId(item);
+  document.querySelector("#itemDialogEyebrow").textContent = "Agenda";
+  document.querySelector("#itemDialogTitle").textContent = item.id ? "Editar compromisso" : "Adicionar compromisso";
+  els.itemFields.innerHTML = `
+    <label class="full-field">Compromisso<input name="title" required value="${escapeHtml(item.title || "")}" placeholder="Ex: Reuniao de alinhamento"></label>
+    <label>Data<input name="date" type="date" required value="${escapeHtml(item.date || "")}"></label>
+    <label>Hora<input name="time" type="time" value="${escapeHtml(item.time || "")}"></label>
+    <label>Fornecedor
+      <select name="vendorId">
+        ${renderLinkedVendorOptions(item, selectedVendorId)}
+      </select>
+    </label>
+    <label>Status
+      <select name="status" required>
+        ${["Agendada", "Realizada", "Cancelada", "Reagendada"].map((option) => `<option ${((item.status || "Agendada") === option) ? "selected" : ""}>${option}</option>`).join("")}
+      </select>
+    </label>
+    <label>Lembrete
+      <select name="reminder">
+        ${["Nenhum", "1 dia antes", "3 dias antes", "1 semana antes"].map((option) => `<option ${((item.reminder || "Nenhum") === option) ? "selected" : ""}>${option}</option>`).join("")}
+      </select>
+    </label>
+    <label class="full-field">Observacoes<textarea name="notes">${escapeHtml(item.notes || "")}</textarea></label>
+  `;
+}
+
+function renderLinkedVendorOptions(item, selectedVendorId) {
+  const hasLegacyVendor = item.vendor && !state.data.vendors.some((vendor) => vendor.id === selectedVendorId);
+  return `
+    <option value="">Sem fornecedor</option>
+    ${hasLegacyVendor ? `<option value="__legacy__" selected>${escapeHtml(item.vendor)} (nao cadastrado)</option>` : ""}
+    ${state.data.vendors.map((vendor) => `<option value="${vendor.id}" ${selectedVendorId === vendor.id ? "selected" : ""}>${escapeHtml(vendor.name)}</option>`).join("")}
+  `;
+}
+
+function wireLinkedVendorCategory() {
+  const vendorSelect = els.itemForm.elements.vendorId;
+  const categorySelect = els.itemForm.elements.category;
+  vendorSelect.addEventListener("change", () => {
+    const vendor = state.data.vendors.find((entry) => entry.id === vendorSelect.value);
+    if (vendor?.category) categorySelect.value = vendor.category;
+  });
+}
+
+function savePaymentItem(form) {
+  const previous = editing.id ? state.data.payments.find((entry) => entry.id === editing.id) : null;
+  const vendorIdValue = String(form.get("vendorId") || "");
+  const vendor = state.data.vendors.find((entry) => entry.id === vendorIdValue);
+  const keepLegacy = vendorIdValue === "__legacy__";
+  const item = {
+    id: editing.id || uid(),
+    description: String(form.get("description") || "").trim(),
+    vendorId: vendor?.id || "",
+    vendor: vendor?.name || (keepLegacy ? previous?.vendor || "" : ""),
+    category: String(form.get("category") || vendor?.category || "").trim(),
+    amount: Math.max(0, Number(form.get("amount")) || 0),
+    dueDate: String(form.get("dueDate") || ""),
+    status: form.get("status") || "Pendente",
+    notes: form.get("notes") || ""
+  };
+  if (editing.id) state.data.payments = state.data.payments.map((entry) => entry.id === editing.id ? item : entry);
+  else state.data.payments.push(item);
+  saveState();
+}
+
+function saveAppointmentItem(form) {
+  const previous = editing.id ? state.data.appointments.find((entry) => entry.id === editing.id) : null;
+  const vendorIdValue = String(form.get("vendorId") || "");
+  const vendor = state.data.vendors.find((entry) => entry.id === vendorIdValue);
+  const keepLegacy = vendorIdValue === "__legacy__";
+  const item = {
+    id: editing.id || uid(),
+    title: String(form.get("title") || "").trim(),
+    date: String(form.get("date") || ""),
+    time: String(form.get("time") || ""),
+    vendorId: vendor?.id || "",
+    vendor: vendor?.name || (keepLegacy ? previous?.vendor || "" : ""),
+    status: form.get("status") || "Agendada",
+    reminder: form.get("reminder") || "Nenhum",
+    notes: form.get("notes") || ""
+  };
+  if (editing.id) state.data.appointments = state.data.appointments.map((entry) => entry.id === editing.id ? item : entry);
+  else state.data.appointments.push(item);
+  saveState();
+}
+
+function linkedVendorId(item) {
+  if (item.vendorId && state.data.vendors.some((vendor) => vendor.id === item.vendorId)) return item.vendorId;
+  return state.data.vendors.find((vendor) => normalizeHeader(vendor.name) === normalizeHeader(item.vendor))?.id || "";
+}
+
+function linkedFinancialCategories(current = "") {
+  return [...new Set([
+    ...(state.vendorCategories || []),
+    ...state.data.budget.map((item) => item.category).filter(Boolean),
+    current
+  ].filter(Boolean))];
 }
 
 function renderGuestForm(item) {
@@ -4090,6 +4271,48 @@ function paidPaymentsTotal() {
     .reduce((total, payment) => total + (Number(payment.amount) || 0), 0);
 }
 
+function paidPaymentsForBudgetCategory(category) {
+  const target = normalizeHeader(category);
+  return state.data.payments
+    .filter((payment) => payment.status === "Pago" && normalizeHeader(resolveBudgetCategory(payment.category)) === target)
+    .reduce((total, payment) => total + (Number(payment.amount) || 0), 0);
+}
+
+function resolveBudgetCategory(paymentCategory) {
+  const normalized = normalizeHeader(paymentCategory);
+  const exact = state.data.budget.find((item) => normalizeHeader(item.category) === normalized);
+  if (exact) return exact.category;
+  const aliases = {
+    buffet: "Gastronomia / Buffet",
+    gastronomia: "Gastronomia / Buffet",
+    vestido: "Vestido de noiva",
+    traje: "Traje do noivo",
+    decoracao: "Decoracao",
+    fotografia: "Fotografo",
+    fotografo: "Fotografo",
+    filmagem: "Video / Filmagem",
+    video: "Video / Filmagem",
+    doces: "Mesa de doces",
+    transporte: "Empresa de transporte",
+    maquiagem: "Maquiagem e cabelo",
+    bar: "Bar de drinks",
+    musica: "DJ / Musicos",
+    dj: "DJ / Musicos",
+    papelaria: "Convite e papelaria",
+    identidade: "Identidade visual",
+    moveis: "Locacao de moveis",
+    recreacionista: "Recreacionista / Espaco Kids",
+    lembrancinha: "Lembrancinha",
+    celebrante: "Celebrante",
+    igreja: "Igreja",
+    local: "Local",
+    bolo: "Bolo"
+  };
+  if (aliases[normalized]) return aliases[normalized];
+  const aliasKey = Object.keys(aliases).find((key) => normalized.includes(key));
+  return aliasKey ? aliases[aliasKey] : paymentCategory;
+}
+
 function defaultChecklistTasks() {
   const tasks = [
     ["12 meses", "Pesquisar fornecedores", "Fornecedores", "Alta"],
@@ -4417,6 +4640,29 @@ function normalizeState(nextState) {
   const defaultVendorCategories = structuredClone(seedState.vendorCategories || []);
   const dataVendorCategories = (nextState.data.vendors || []).map((item) => item.category).filter(Boolean);
   nextState.vendorCategories = [...new Set([...(nextState.vendorCategories || defaultVendorCategories), ...dataVendorCategories])];
+  nextState.data.payments = (nextState.data.payments || []).map((payment) => {
+    const vendor = nextState.data.vendors.find((entry) => entry.id === payment.vendorId)
+      || nextState.data.vendors.find((entry) => normalizeHeader(entry.name) === normalizeHeader(payment.vendor));
+    return {
+      ...payment,
+      vendorId: vendor?.id || "",
+      vendor: vendor?.name || payment.vendor || "",
+      category: payment.category || vendor?.category || "",
+      amount: Math.max(0, Number(payment.amount) || 0),
+      status: ["Pendente", "Pago", "Atrasado"].includes(payment.status) ? payment.status : "Pendente"
+    };
+  });
+  nextState.data.appointments = (nextState.data.appointments || []).map((appointment) => {
+    const vendor = nextState.data.vendors.find((entry) => entry.id === appointment.vendorId)
+      || nextState.data.vendors.find((entry) => normalizeHeader(entry.name) === normalizeHeader(appointment.vendor));
+    return {
+      ...appointment,
+      vendorId: vendor?.id || "",
+      vendor: vendor?.name || appointment.vendor || "",
+      status: ["Agendada", "Realizada", "Cancelada", "Reagendada"].includes(appointment.status) ? appointment.status : "Agendada",
+      reminder: appointment.reminder || "Nenhum"
+    };
+  });
   nextState.vendorView = {
     groupBy: "category",
     sortBy: "name-asc",
@@ -4912,7 +5158,7 @@ function labelForField(field) {
     status: "Status",
     priority: "Prioridade",
     owner: "Responsavel",
-    dueDate: "Prazo",
+    dueDate: "Vencimento",
     notes: "Observacoes",
     section: "Secao",
     share: "Percentual base",
@@ -4961,9 +5207,9 @@ function primaryStatus(item) {
 }
 
 function chipColor(value) {
-  if (["Concluido", "Confirmado", "Pago", "Contratado", "Assinado", "Aprovada"].includes(value)) return "teal";
-  if (["Estourou", "Atrasado", "Não vai"].includes(value)) return "rose";
-  if (["Pendente", "A enviar convite", "Em andamento", "Media"].includes(value)) return "gold";
+  if (["Concluido", "Confirmado", "Pago", "Contratado", "Assinado", "Aprovada", "Realizada"].includes(value)) return "teal";
+  if (["Estourou", "Atrasado", "Não vai", "Cancelada"].includes(value)) return "rose";
+  if (["Pendente", "A enviar convite", "Em andamento", "Media", "Reagendada"].includes(value)) return "gold";
   if (["Alta", "Comprar"].includes(value)) return "rose";
   if (["Baixa", "Ideia"].includes(value)) return "sage";
   return "sage";
