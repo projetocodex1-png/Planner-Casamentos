@@ -27,6 +27,8 @@ const DEFAULT_GUEST_ROLES = [
   "Convidado comum"
 ];
 const DEFAULT_GUEST_TYPES = ["Adulto", "Crianca"];
+const DEFAULT_MEMORY_CATEGORIES = ["Padrinhos", "Madrinhas", "Pais", "Convidados do casamento"];
+const DEFAULT_MEMORY_ITEM_TYPES = ["Manual Padrinho", "Manual Madrinha", "Manual Pais", "Caixa de Presente"];
 
 const RSVP_STATUSES = ["A enviar convite", "Pendente", "Confirmado", "Não vai"];
 const DEFAULT_MUSIC_MOMENTS = ["Entrada", "Cerimonia", "Aliancas", "Cumprimentos", "Primeira danca", "Festa", "Encerramento"];
@@ -218,6 +220,20 @@ const moduleConfig = {
     fields: [],
     filters: []
   },
+  memories: {
+    title: "Lembranças",
+    eyebrow: "Presentes e detalhes",
+    layout: "memories",
+    color: "rose",
+    fields: [
+      ["purchased", "Comprado", "checkbox", false],
+      ["itemType", "Tipo de item", "text", true],
+      ["category", "Subdivisão", "select", true, DEFAULT_MEMORY_CATEGORIES],
+      ["value", "Valor", "number", false],
+      ["link", "Link da cotação", "url", false]
+    ],
+    filters: []
+  },
   tables: {
     title: "Mesas",
     eyebrow: "Distribuicao",
@@ -322,6 +338,7 @@ const navItems = [
   ["budget", "Orcamento"],
   ["guests", "Convidados"],
   ["weddingParty", "Padrinhos e Madrinhas"],
+  ["memories", "Lembranças"],
   ["tables", "Mesas"],
   ["music", "Musicas"],
   ["identity", "Identidade"],
@@ -342,6 +359,7 @@ const seedState = {
   guestGroups: DEFAULT_GUEST_GROUPS,
   guestRoles: DEFAULT_GUEST_ROLES,
   guestTypes: DEFAULT_GUEST_TYPES,
+  memoryCategories: DEFAULT_MEMORY_CATEGORIES,
   guestView: {
     groupBy: "none"
   },
@@ -372,6 +390,7 @@ const seedState = {
     budget: [],
     guests: [],
     weddingParty: [],
+    memories: [],
     tables: [],
     music: [],
     identity: [],
@@ -703,6 +722,13 @@ function wireShell() {
       render();
       return;
     }
+    if (key === "memoryCategory") {
+      if (saveMemoryCategory(form) === false) return;
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
     if (key === "weddingPartyManual") {
       saveWeddingPartyManual(form);
       els.itemDialog.close();
@@ -747,6 +773,13 @@ function wireShell() {
     }
     if (key === "music") {
       saveMusicItem(form);
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
+    if (key === "memories") {
+      saveMemoryItem(form);
       els.itemDialog.close();
       editing = null;
       render();
@@ -1047,6 +1080,19 @@ function renderModule(key) {
   els.moduleView.querySelectorAll("[data-add-guest-option]").forEach((button) => {
     button.addEventListener("click", () => addGuestOptionFromInput(button.dataset.addGuestOption));
   });
+  els.moduleView.querySelector("[data-add-memory-category]")?.addEventListener("click", () => openMemoryCategoryDialog());
+  els.moduleView.querySelectorAll("[data-edit-memory-category]").forEach((button) => {
+    button.addEventListener("click", () => openMemoryCategoryDialog(button.dataset.editMemoryCategory));
+  });
+  els.moduleView.querySelectorAll("[data-delete-memory-category]").forEach((button) => {
+    button.addEventListener("click", () => deleteMemoryCategory(button.dataset.deleteMemoryCategory));
+  });
+  els.moduleView.querySelectorAll("[data-add-memory-item]").forEach((button) => {
+    button.addEventListener("click", () => openItemDialog("memories", null, { category: button.dataset.addMemoryItem }));
+  });
+  els.moduleView.querySelectorAll("[data-toggle-memory]").forEach((input) => {
+    input.addEventListener("change", () => toggleMemoryPurchased(input.dataset.toggleMemory, input.checked));
+  });
   els.moduleView.querySelectorAll("[data-guest-option-input]").forEach((input) => {
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -1112,6 +1158,7 @@ function renderModuleContent(key, items) {
   const layout = moduleConfig[key].layout;
   if (key === "guests") return renderGuests(items);
   if (key === "weddingParty") return renderWeddingParty();
+  if (key === "memories") return renderMemories(items);
   if (key === "tables") return renderTablePlanner(items);
   if (key === "vendors") return renderVendors(items);
   if (key === "payments") return renderPayments(items);
@@ -1183,6 +1230,83 @@ function renderGuestOptionAdder(key, label, placeholder) {
         <button class="secondary-action compact-action" type="button" data-add-guest-option="${escapeHtml(key)}">Adicionar</button>
       </div>
     </label>
+  `;
+}
+
+function renderMemories(items) {
+  const categories = state.memoryCategories || [];
+  const purchased = state.data.memories.filter((item) => item.purchased).length;
+  const totalValue = sum(state.data.memories, "value");
+  return `
+    <section class="memory-overview">
+      <div>
+        <strong>${purchased}/${state.data.memories.length}</strong>
+        <span>itens comprados</span>
+      </div>
+      <div>
+        <strong>${money(totalValue)}</strong>
+        <span>valor estimado</span>
+      </div>
+      <button class="secondary-action memory-add-category" type="button" data-add-memory-category>
+        ${iconSvg("plus")}
+        <span>Nova subdivisão</span>
+      </button>
+    </section>
+    <div class="memory-groups">
+      ${categories.map((category) => renderMemoryGroup(category, items)).join("")}
+    </div>
+  `;
+}
+
+function renderMemoryGroup(category, items) {
+  const categoryItems = items.filter((item) => item.category === category);
+  const allCategoryItems = state.data.memories.filter((item) => item.category === category);
+  const purchased = allCategoryItems.filter((item) => item.purchased).length;
+  return `
+    <section class="memory-group">
+      <header class="memory-group-header">
+        <div>
+          <h3>${escapeHtml(category)}</h3>
+          <span>${purchased}/${allCategoryItems.length} comprados</span>
+        </div>
+        <div class="memory-group-actions">
+          <button class="secondary-action memory-add-item" type="button" data-add-memory-item="${escapeHtml(category)}">
+            ${iconSvg("plus")}
+            <span>Item</span>
+          </button>
+          <button class="icon-button icon-only edit action-link" type="button" data-edit-memory-category="${escapeHtml(category)}" title="Renomear subdivisão" aria-label="Renomear subdivisão">${iconSvg("edit")}</button>
+          <button class="icon-button icon-only danger action-link" type="button" data-delete-memory-category="${escapeHtml(category)}" title="Excluir subdivisão" aria-label="Excluir subdivisão">${iconSvg("trash")}</button>
+        </div>
+      </header>
+      ${categoryItems.length ? `
+        <div class="memory-table-wrap">
+          <table class="memory-table">
+            <thead>
+              <tr>
+                <th class="memory-check-column">Comprado</th>
+                <th>Tipo de item</th>
+                <th>Valor</th>
+                <th>Link da cotação</th>
+                <th>Acoes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${categoryItems.map((item) => `
+                <tr class="${item.purchased ? "memory-purchased" : ""}">
+                  <td class="memory-check-cell">
+                    <input class="memory-checkbox" type="checkbox" data-toggle-memory="${item.id}" ${item.purchased ? "checked" : ""} aria-label="Marcar ${escapeHtml(item.itemType)} como comprado">
+                  </td>
+                  <td><strong>${escapeHtml(item.itemType)}</strong></td>
+                  <td>${money(item.value)}</td>
+                  <td>${item.link ? formatExternalLink(item.link) : '<span class="muted-note">Sem link</span>'}</td>
+                  <td>${actionButtons(item.id)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      ` : '<p class="memory-empty">Nenhum item nesta subdivisao.</p>'}
+    </section>
   `;
 }
 
@@ -2907,12 +3031,19 @@ function startTableMove(event) {
   node.addEventListener("pointercancel", stop);
 }
 
-function openItemDialog(key, id = null) {
+function openItemDialog(key, id = null, defaults = {}) {
+  if (key === "memories" && !(state.memoryCategories || []).length) {
+    alert("Crie uma subdivisão antes de adicionar uma lembrança.");
+    openMemoryCategoryDialog();
+    return;
+  }
   const config = moduleConfig[key];
-  const item = id ? state.data[key].find((entry) => entry.id === id) : {};
+  const item = id ? state.data[key].find((entry) => entry.id === id) : defaults;
   editing = { key, id };
   document.querySelector("#itemDialogEyebrow").textContent = config.eyebrow;
-  document.querySelector("#itemDialogTitle").textContent = id ? `Editar ${config.title}` : `Adicionar ${config.title}`;
+  document.querySelector("#itemDialogTitle").textContent = key === "memories"
+    ? (id ? "Editar lembrança" : "Adicionar lembrança")
+    : (id ? `Editar ${config.title}` : `Adicionar ${config.title}`);
   if (key === "identity") {
     if ((item || {}).section === "Paleta de cores") renderIdentityColorForm(item || {}, item.group || "Decoracao");
     else renderIdentityFontForm(item || {});
@@ -2939,6 +3070,11 @@ function openItemDialog(key, id = null) {
     els.itemDialog.showModal();
     return;
   }
+  if (key === "memories") {
+    renderMemoryForm(item || {});
+    els.itemDialog.showModal();
+    return;
+  }
   els.itemFields.innerHTML = config.fields.map(([name, label, type, required, options]) => {
     const value = item?.[name] ?? "";
     if (type === "textarea") {
@@ -2950,6 +3086,48 @@ function openItemDialog(key, id = null) {
     const inputValue = type === "color" ? (value || "#ffffff") : value;
     return `<label>${label}<input name="${name}" type="${type}" value="${escapeHtml(inputValue)}" ${required ? "required" : ""}></label>`;
   }).join("");
+  els.itemDialog.showModal();
+}
+
+function renderMemoryForm(item) {
+  const categories = state.memoryCategories || [];
+  els.itemFields.innerHTML = `
+    <label class="memory-purchased-field">
+      <span>Compra realizada</span>
+      <span class="memory-checkbox-label">
+        <input name="purchased" type="checkbox" ${item.purchased ? "checked" : ""}>
+        <span>Marcar como comprado</span>
+      </span>
+    </label>
+    <label>Subdivisão
+      <select name="category" required>
+        ${categories.map((category) => `<option value="${escapeHtml(category)}" ${item.category === category ? "selected" : ""}>${escapeHtml(category)}</option>`).join("")}
+      </select>
+    </label>
+    <label>Tipo de item
+      <input name="itemType" list="memoryItemTypes" required value="${escapeHtml(item.itemType || "")}" placeholder="Ex: Caixa de Presente">
+      <datalist id="memoryItemTypes">
+        ${DEFAULT_MEMORY_ITEM_TYPES.map((type) => `<option value="${escapeHtml(type)}"></option>`).join("")}
+      </datalist>
+    </label>
+    <label>Valor
+      <input name="value" type="number" min="0" step="0.01" value="${Number(item.value) || 0}" placeholder="0,00">
+    </label>
+    <label class="full-field">Link da cotação
+      <input name="link" type="text" inputmode="url" value="${escapeHtml(item.link || "")}" placeholder="https://loja.com/produto">
+    </label>
+  `;
+}
+
+function openMemoryCategoryDialog(category = "") {
+  editing = { key: "memoryCategory", id: category || null };
+  document.querySelector("#itemDialogEyebrow").textContent = "Lembranças";
+  document.querySelector("#itemDialogTitle").textContent = category ? "Renomear subdivisão" : "Nova subdivisão";
+  els.itemFields.innerHTML = `
+    <label class="full-field">Nome da subdivisão
+      <input name="categoryName" required value="${escapeHtml(category)}" placeholder="Ex: Damas e pajens">
+    </label>
+  `;
   els.itemDialog.showModal();
 }
 
@@ -3441,6 +3619,62 @@ function saveIdentityItem(form) {
   saveState();
 }
 
+function saveMemoryItem(form) {
+  const category = String(form.get("category") || "").trim();
+  const item = {
+    id: editing.id || uid(),
+    purchased: form.has("purchased"),
+    itemType: String(form.get("itemType") || "").trim(),
+    category,
+    value: Math.max(0, Number(form.get("value")) || 0),
+    link: String(form.get("link") || "").trim()
+  };
+  if (category && !state.memoryCategories.includes(category)) state.memoryCategories.push(category);
+  if (editing.id) {
+    state.data.memories = state.data.memories.map((entry) => entry.id === editing.id ? item : entry);
+  } else {
+    state.data.memories.push(item);
+  }
+  saveState();
+}
+
+function saveMemoryCategory(form) {
+  const name = String(form.get("categoryName") || "").trim();
+  const previousName = editing.id;
+  if (!name) return false;
+  const duplicate = state.memoryCategories.some((category) => category !== previousName && normalizeHeader(category) === normalizeHeader(name));
+  if (duplicate) {
+    alert("Já existe uma subdivisão com esse nome.");
+    return false;
+  }
+  if (previousName) {
+    state.memoryCategories = state.memoryCategories.map((category) => category === previousName ? name : category);
+    state.data.memories = state.data.memories.map((item) => item.category === previousName ? { ...item, category: name } : item);
+  } else {
+    state.memoryCategories.push(name);
+  }
+  saveState();
+  return true;
+}
+
+function deleteMemoryCategory(category) {
+  const itemCount = state.data.memories.filter((item) => item.category === category).length;
+  const message = itemCount
+    ? `Excluir a subdivisão "${category}" e seus ${itemCount} item(ns)?`
+    : `Excluir a subdivisão "${category}"?`;
+  if (!confirm(message)) return;
+  state.memoryCategories = state.memoryCategories.filter((entry) => entry !== category);
+  state.data.memories = state.data.memories.filter((item) => item.category !== category);
+  saveState();
+  render();
+}
+
+function toggleMemoryPurchased(id, purchased) {
+  state.data.memories = state.data.memories.map((item) => item.id === id ? { ...item, purchased } : item);
+  saveState();
+  renderModule("memories");
+}
+
 function deleteItem(key, id) {
   if (!confirm("Excluir este item?")) return;
   state.data[key] = state.data[key].filter((item) => item.id !== id);
@@ -3558,7 +3792,7 @@ function exportCsv(key) {
   }
   const items = sortTableItems(key, filteredItems(key));
   const fields = exportFields(key);
-  const labels = fields.map(labelForField);
+  const labels = fields.map((field) => key === "memories" && field === "link" ? "Link da cotacao" : labelForField(field));
   const rows = [labels, ...items.map((item) => fields.map((field) => tableCellValue(key, item, field) ?? ""))];
   const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -4141,6 +4375,20 @@ function normalizeState(nextState) {
     groupBy: "none",
     ...(nextState.guestView || {})
   };
+  nextState.data.memories ||= structuredClone(seedState.data.memories);
+  nextState.data.memories = nextState.data.memories.map((item) => ({
+    ...item,
+    purchased: Boolean(item.purchased),
+    itemType: String(item.itemType || item.name || "").trim(),
+    category: String(item.category || DEFAULT_MEMORY_CATEGORIES[0]).trim(),
+    value: Math.max(0, Number(item.value) || 0),
+    link: String(item.link || "").trim()
+  }));
+  const memoryItemCategories = nextState.data.memories.map((item) => item.category).filter(Boolean);
+  nextState.memoryCategories = [...new Set([
+    ...(Array.isArray(nextState.memoryCategories) ? nextState.memoryCategories : DEFAULT_MEMORY_CATEGORIES),
+    ...memoryItemCategories
+  ])];
   nextState.data.music ||= structuredClone(seedState.data.music);
   const dataMusicMoments = nextState.data.music.map((item) => item.moment).filter(Boolean);
   nextState.musicMoments = [...new Set([...DEFAULT_MUSIC_MOMENTS, ...(nextState.musicMoments || []), ...dataMusicMoments])];
@@ -4683,6 +4931,8 @@ function labelForField(field) {
     song: "Musica",
     artist: "Artista",
     link: "Link da musica",
+    purchased: "Comprado",
+    itemType: "Tipo de item",
     moment: "Momento",
     contact: "Contato",
     value: "Valor",
