@@ -1182,6 +1182,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   color: var(--muted);
 }
 
+.vendor-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vendor-group-title h3 {
+  margin: 0;
+}
+
+.vendor-empty-category {
+  margin: 0;
+  padding: 4px 0 2px;
+}
+
 .payment-summary {
   margin-top: 0;
 }

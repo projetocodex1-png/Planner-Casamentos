@@ -356,6 +356,7 @@ const seedState = {
   currentView: "dashboard",
   checklistDefaultsVersion: 3,
   budgetDefaultsVersion: 3,
+  categorySyncVersion: 1,
   filters: {},
   tableSort: {},
   identityColorGroups: ["Decoracao", "Noiva", "Noivo", "Pais", "Madrinhas", "Padrinhos"],
@@ -383,7 +384,7 @@ const seedState = {
     updatedAt: ""
   },
   paymentCalendarMonth: "",
-  vendorCategories: ["Buffet", "Vestido", "Traje", "Decoracao", "Fotografia", "Filmagem", "Doces", "Transporte", "Maquiagem", "Bar", "Local", "Musica"],
+  vendorCategories: DEFAULT_BUDGET_CATEGORIES.map(([category]) => category),
   vendorView: {
     groupBy: "category",
     sortBy: "name-asc"
@@ -615,6 +616,7 @@ async function loadCloudState(user) {
     state = normalizeState({
       ...structuredClone(seedState),
       ...data.state,
+      categorySyncVersion: data.state.categorySyncVersion || 0,
       data: {
         ...structuredClone(seedState).data,
         ...(data.state.data || {})
@@ -761,7 +763,7 @@ function wireShell() {
       return;
     }
     if (key === "budget") {
-      saveBudgetItem(form);
+      if (saveBudgetItem(form) === false) return;
       els.itemDialog.close();
       editing = null;
       render();
@@ -1105,6 +1107,9 @@ function renderModule(key) {
     });
   });
   els.moduleView.querySelector("[data-add-vendor-category]")?.addEventListener("click", openVendorCategoryDialog);
+  els.moduleView.querySelectorAll("[data-edit-vendor-category]").forEach((button) => {
+    button.addEventListener("click", () => openVendorCategoryDialog(button.dataset.editVendorCategory));
+  });
   els.moduleView.querySelectorAll("[data-guest-view]").forEach((select) => {
     select.addEventListener("change", (event) => {
       state.guestView = { ...(state.guestView || {}), [event.target.dataset.guestView]: event.target.value };
@@ -1583,21 +1588,32 @@ function renderPaymentCalendarDay(day, month, items) {
 }
 
 function renderVendors(items) {
-  if (!items.length) return emptyPanel();
   const sorted = sortVendors(items);
   const groupBy = state.vendorView?.groupBy || "category";
-  const groups = groupBy === "none" ? [["Todos", sorted]] : [...new Set(sorted.map((item) => item[groupBy] || "Sem classificacao"))].map((group) => [group, sorted.filter((item) => (item[groupBy] || "Sem classificacao") === group)]);
+  if (groupBy === "none") return items.length ? renderTable("vendors", sorted) : emptyPanel();
+  const filters = state.filters.vendors || {};
+  const filteredCategories = filters.category
+    ? [filters.category]
+    : (filters.query || filters.status)
+      ? [...new Set(sorted.map((item) => item.category).filter(Boolean))]
+      : state.vendorCategories;
+  if (!filteredCategories.length) return emptyPanel();
+  const groups = filteredCategories.map((category) => [
+    category,
+    sorted.filter((item) => normalizeHeader(item.category) === normalizeHeader(category))
+  ]);
   return `
     <div class="vendor-groups">
       ${groups.map(([group, groupItems]) => `
         <section class="vendor-group">
           <div class="panel-header">
-            <div>
+            <div class="vendor-group-title">
               <h3>${escapeHtml(group)}</h3>
+              <button class="icon-button icon-only edit action-link" type="button" data-edit-vendor-category="${escapeHtml(group)}" aria-label="Editar categoria ${escapeHtml(group)}">${iconSvg("edit")}</button>
             </div>
             <span class="chip teal">${groupItems.length}</span>
           </div>
-          <div class="table-wrap">
+          ${groupItems.length ? `<div class="table-wrap">
             <table>
               <thead>
                 <tr><th>Nome</th><th>Categoria</th><th>Contato</th><th>Instagram</th><th>Valor</th><th>Status</th><th>Contrato</th><th>Acoes</th></tr>
@@ -1617,7 +1633,7 @@ function renderVendors(items) {
                 `).join("")}
               </tbody>
             </table>
-          </div>
+          </div>` : '<p class="muted-note vendor-empty-category">Sem fornecedores nesta categoria.</p>'}
         </section>
       `).join("")}
     </div>
@@ -3219,10 +3235,18 @@ function renderBudgetForm(item) {
 
 function saveBudgetItem(form) {
   const previous = editing.id ? state.data.budget.find((entry) => entry.id === editing.id) : null;
+  const category = String(form.get("category") || "").trim();
+  if (!previous && state.data.budget.some((item) => normalizeHeader(item.category) === normalizeHeader(category))) {
+    alert("Esta categoria já existe.");
+    return false;
+  }
+  if (previous && normalizeHeader(previous.category) !== normalizeHeader(category)) {
+    if (!renameSharedCategory(previous.category, category, previous.id)) return false;
+  }
   const item = {
     ...(previous || {}),
     id: editing.id || uid(),
-    category: String(form.get("category") || "").trim(),
+    category,
     share: Math.max(0, Number(form.get("share")) || 0),
     suggestedBase: previous?.suggestedBase || 0,
     actualBase: 0,
@@ -3233,8 +3257,87 @@ function saveBudgetItem(form) {
   };
   if (editing.id) state.data.budget = state.data.budget.map((entry) => entry.id === editing.id ? item : entry);
   else state.data.budget.push(item);
+  addSharedCategory(category);
   state.data.budget = syncBudgetFromVendors(state.data.budget, state.data.vendors);
   saveState();
+  return true;
+}
+
+function budgetItemForCategory(category) {
+  const defaults = defaultBudgetForCategory(category);
+  const budget = Number(state.wedding?.budget) || 0;
+  return {
+    id: uid(),
+    category,
+    share: defaults?.share || 0,
+    suggestedBase: defaults?.suggestedBase || 0,
+    actualBase: 0,
+    planned: defaults ? scaledBudgetValue(defaults.suggestedBase, budget) : 0,
+    actual: 0,
+    status: "Planejado",
+    notes: ""
+  };
+}
+
+function addSharedCategory(category) {
+  const name = String(category || "").trim();
+  if (!name) return;
+  if (!state.vendorCategories.some((entry) => normalizeHeader(entry) === normalizeHeader(name))) {
+    state.vendorCategories.push(name);
+  }
+  if (!state.data.budget.some((item) => normalizeHeader(item.category) === normalizeHeader(name))) {
+    state.data.budget.push(budgetItemForCategory(name));
+  }
+}
+
+function uniqueCategories(categories) {
+  const seen = new Set();
+  return (categories || []).filter((category) => {
+    const name = String(category || "").trim();
+    const key = normalizeHeader(name);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).map((category) => String(category).trim());
+}
+
+function renameSharedCategory(previousCategory, nextCategory, budgetItemId = "") {
+  const previous = String(previousCategory || "").trim();
+  const next = String(nextCategory || "").trim();
+  if (!next) return false;
+  const conflictsWithCategory = state.vendorCategories.some((category) => (
+    normalizeHeader(category) === normalizeHeader(next)
+    && normalizeHeader(category) !== normalizeHeader(previous)
+  ));
+  const conflictsWithBudget = state.data.budget.some((item) => (
+    item.id !== budgetItemId
+    && normalizeHeader(item.category) === normalizeHeader(next)
+    && normalizeHeader(item.category) !== normalizeHeader(previous)
+  ));
+  if (conflictsWithCategory || conflictsWithBudget) {
+    alert("Esta categoria já existe.");
+    return false;
+  }
+  state.vendorCategories = state.vendorCategories.map((category) => (
+    normalizeHeader(category) === normalizeHeader(previous) ? next : category
+  ));
+  if (!state.vendorCategories.some((category) => normalizeHeader(category) === normalizeHeader(next))) {
+    state.vendorCategories.push(next);
+  }
+  state.data.budget = state.data.budget.map((item) => (
+    normalizeHeader(item.category) === normalizeHeader(previous) ? { ...item, category: next } : item
+  ));
+  state.data.vendors = state.data.vendors.map((vendor) => (
+    normalizeHeader(vendor.category) === normalizeHeader(previous) ? { ...vendor, category: next } : vendor
+  ));
+  state.data.payments = state.data.payments.map((payment) => (
+    normalizeHeader(payment.category) === normalizeHeader(previous) ? { ...payment, category: next } : payment
+  ));
+  state.data.appointments = state.data.appointments.map((appointment) => (
+    normalizeHeader(appointment.category) === normalizeHeader(previous) ? { ...appointment, category: next } : appointment
+  ));
+  state.data.budget = syncBudgetFromVendors(state.data.budget, state.data.vendors);
+  return true;
 }
 
 function renderMemoryForm(item) {
@@ -3331,14 +3434,15 @@ function openIdentityFontDialog(id = null) {
   els.itemDialog.showModal();
 }
 
-function openVendorCategoryDialog() {
-  editing = { key: "vendorCategory", id: null };
+function openVendorCategoryDialog(category = "") {
+  editing = { key: "vendorCategory", id: category || null };
   document.querySelector("#itemDialogEyebrow").textContent = "Fornecedores";
-  document.querySelector("#itemDialogTitle").textContent = "Adicionar categoria";
+  document.querySelector("#itemDialogTitle").textContent = category ? "Editar categoria" : "Adicionar categoria";
   els.itemFields.innerHTML = `
     <label class="full-field">Nome da categoria
-      <input name="categoryName" required placeholder="Ex: Bar 2">
+      <input name="categoryName" required value="${escapeHtml(category)}" placeholder="Ex: Bar 2">
     </label>
+    ${category ? '<p class="form-note full-field">A alteração também será aplicada no orçamento, nos fornecedores, nos pagamentos e nos compromissos vinculados.</p>' : ''}
   `;
   els.itemDialog.showModal();
 }
@@ -3346,11 +3450,16 @@ function openVendorCategoryDialog() {
 function saveVendorCategory(form) {
   const category = String(form.get("categoryName") || "").trim();
   if (!category) return false;
+  if (editing.id) {
+    if (!renameSharedCategory(editing.id, category)) return false;
+    saveState();
+    return true;
+  }
   if (state.vendorCategories.some((entry) => normalizeHeader(entry) === normalizeHeader(category))) {
     alert("Esta categoria já existe.");
     return false;
   }
-  state.vendorCategories.push(category);
+  addSharedCategory(category);
   saveState();
   return true;
 }
@@ -3400,7 +3509,7 @@ function saveVendorItem(form) {
   let category = form.get("category");
   const newCategory = String(form.get("newCategory") || "").trim();
   if (category === "Nova categoria" && newCategory) category = newCategory;
-  if (category && !state.vendorCategories.includes(category) && category !== "Nova categoria") state.vendorCategories.push(category);
+  if (category && category !== "Nova categoria") addSharedCategory(category);
   const item = {
     id: editing.id || uid(),
     name: String(form.get("name") || "").trim(),
@@ -4028,6 +4137,25 @@ function toggleMemoryPurchased(id, purchased) {
 }
 
 function deleteItem(key, id) {
+  if (key === "budget") {
+    const budgetItem = state.data.budget.find((item) => item.id === id);
+    if (!budgetItem) return;
+    const linkedVendors = state.data.vendors.filter((vendor) => normalizeHeader(vendor.category) === normalizeHeader(budgetItem.category));
+    const hasFinancialLinks = state.data.payments.some((item) => normalizeHeader(item.category) === normalizeHeader(budgetItem.category))
+      || state.data.appointments.some((item) => normalizeHeader(item.category) === normalizeHeader(budgetItem.category));
+    if (hasFinancialLinks) {
+      alert("Esta categoria possui pagamentos ou compromissos vinculados. Mova ou exclua esses registros antes de apagar a categoria.");
+      return;
+    }
+    const detail = linkedVendors.length ? ` e seus ${linkedVendors.length} fornecedor(es)` : "";
+    if (!confirm(`Excluir a categoria \"${budgetItem.category}\"${detail} de Orçamento e Fornecedores?`)) return;
+    state.data.budget = state.data.budget.filter((item) => item.id !== id);
+    state.data.vendors = state.data.vendors.filter((vendor) => normalizeHeader(vendor.category) !== normalizeHeader(budgetItem.category));
+    state.vendorCategories = state.vendorCategories.filter((category) => normalizeHeader(category) !== normalizeHeader(budgetItem.category));
+    saveState();
+    render();
+    return;
+  }
   if (!confirm("Excluir este item?")) return;
   state.data[key] = state.data[key].filter((item) => item.id !== id);
   if (key === "vendors") state.data.budget = syncBudgetFromVendors(state.data.budget, state.data.vendors);
@@ -4333,6 +4461,7 @@ function loadState() {
       ...structuredClone(seedState),
       ...parsed,
       checklistDefaultsVersion: parsed.checklistDefaultsVersion || 0,
+      categorySyncVersion: parsed.categorySyncVersion || 0,
       data: {
         ...structuredClone(seedState).data,
         ...(parsed.data || {})
@@ -4408,11 +4537,6 @@ function defaultBudgetForCategory(category) {
   if (!found) return null;
   const [name, share, suggestedBase, actualBase] = found;
   return { name, share, suggestedBase, actualBase };
-}
-
-function hasMissingDefaultBudgetItems(items = []) {
-  const seen = new Set((items || []).map((item) => normalizeHeader(item.category)));
-  return DEFAULT_BUDGET_CATEGORIES.some(([category]) => !seen.has(normalizeHeader(category)));
 }
 
 function scaledBudgetValue(value, totalBudget = 0) {
@@ -4854,9 +4978,21 @@ function normalizeState(nextState) {
     ...vendor,
     status: ["Cotando", "Favorito", "Contratado", "Descartado"].includes(vendor.status) ? vendor.status : "Cotando"
   }));
-  const defaultVendorCategories = structuredClone(seedState.vendorCategories || []);
-  const dataVendorCategories = (nextState.data.vendors || []).map((item) => item.category).filter(Boolean);
-  nextState.vendorCategories = [...new Set([...(nextState.vendorCategories || defaultVendorCategories), ...dataVendorCategories])];
+  const needsCategoryMigration = nextState.categorySyncVersion !== seedState.categorySyncVersion;
+  if (needsCategoryMigration) {
+    nextState.data.vendors = nextState.data.vendors.map((vendor) => ({
+      ...vendor,
+      category: resolveBudgetCategory(vendor.category, nextState.data.budget)
+    }));
+  }
+  const migratedVendorCategories = needsCategoryMigration
+    ? (nextState.vendorCategories || seedState.vendorCategories).map((category) => resolveBudgetCategory(category, nextState.data.budget))
+    : (nextState.vendorCategories || seedState.vendorCategories);
+  nextState.vendorCategories = uniqueCategories([
+    ...migratedVendorCategories,
+    ...(needsCategoryMigration ? nextState.data.vendors.map((item) => item.category) : []),
+    ...nextState.data.budget.map((item) => item.category)
+  ]);
   nextState.data.payments = (nextState.data.payments || []).map((payment) => {
     const vendor = nextState.data.vendors.find((entry) => entry.id === payment.vendorId)
       || nextState.data.vendors.find((entry) => normalizeHeader(entry.name) === normalizeHeader(payment.vendor));
@@ -4895,7 +5031,6 @@ function normalizeState(nextState) {
     && (
       nextState.budgetDefaultsVersion !== seedState.budgetDefaultsVersion
       || !(nextState.data.budget || []).length
-      || hasMissingDefaultBudgetItems(nextState.data.budget)
     )
   ) {
     nextState.data.budget = mergeDefaultBudgetItems(nextState.data.budget, nextState.wedding.budget);
@@ -4921,6 +5056,26 @@ function normalizeState(nextState) {
     status: "Planejado"
   }));
   nextState.data.budget = syncBudgetFromVendors(nextState.data.budget, nextState.data.vendors);
+  nextState.vendorCategories = uniqueCategories([
+    ...nextState.vendorCategories,
+    ...nextState.data.budget.map((item) => item.category)
+  ]);
+  nextState.vendorCategories.forEach((category) => {
+    if (nextState.data.budget.some((item) => normalizeHeader(item.category) === normalizeHeader(category))) return;
+    const defaults = defaultBudgetForCategory(category);
+    nextState.data.budget.push({
+      id: uid(),
+      category,
+      share: defaults?.share || 0,
+      suggestedBase: defaults?.suggestedBase || 0,
+      actualBase: 0,
+      planned: defaults ? scaledBudgetValue(defaults.suggestedBase, nextState.wedding?.budget) : 0,
+      actual: 0,
+      status: "Planejado",
+      notes: ""
+    });
+  });
+  nextState.categorySyncVersion = seedState.categorySyncVersion;
   return nextState;
 }
 
