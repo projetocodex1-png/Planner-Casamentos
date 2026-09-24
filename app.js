@@ -3307,7 +3307,7 @@ function renderVendorForm(item) {
     <label data-new-vendor-category>Nova categoria<input name="newCategory" value="${escapeHtml(customCategory)}" placeholder="Ex: Celebrante"></label>
     <label>WhatsApp / Contato<input name="contact" value="${escapeHtml(item.contact || "")}" placeholder="(00) 00000-0000"></label>
     <label>Instagram @<input name="instagramHandle" value="${escapeHtml(item.instagramHandle || "")}" placeholder="@nomedapagina"></label>
-    <label>Valor<input name="value" type="number" min="0" step="100" value="${Number(item.value) || 0}"></label>
+    <label>Valor<input name="value" type="number" min="0" step="0.01" value="${Number(item.value) || 0}"></label>
     <label>Status
       <select name="status">
         ${["Cotando", "Favorito", "Contratado", "Descartado"].map((option) => `<option ${item.status === option ? "selected" : ""}>${option}</option>`).join("")}
@@ -3365,12 +3365,7 @@ function saveVendorItem(form) {
         ? { ...vendor, status: "Descartado" }
         : vendor
     ));
-    const budgetCategory = resolveBudgetCategory(item.category);
-    state.data.budget = state.data.budget.map((budgetItem) => (
-      normalizeHeader(budgetItem.category) === normalizeHeader(budgetCategory)
-        ? { ...budgetItem, status: "Contratado" }
-        : budgetItem
-    ));
+    state.data.budget = syncContractedVendorToBudget(state.data.budget, item);
   }
   saveState();
 }
@@ -4423,8 +4418,33 @@ function resolveBudgetCategory(paymentCategory, budgetItems = state.data.budget)
     bolo: "Bolo"
   };
   if (aliases[normalized]) return aliases[normalized];
-  const aliasKey = Object.keys(aliases).find((key) => normalized.includes(key));
-  return aliasKey ? aliases[aliasKey] : paymentCategory;
+  return paymentCategory;
+}
+
+function syncContractedVendorToBudget(budgetItems, vendor) {
+  const resolvedCategory = resolveBudgetCategory(vendor.category, budgetItems);
+  const categoryKey = normalizeHeader(resolvedCategory);
+  const existing = budgetItems.find((item) => normalizeHeader(item.category) === categoryKey);
+  const actual = Math.max(0, Number(vendor.value) || 0);
+  if (existing) {
+    return budgetItems.map((item) => (
+      item.id === existing.id ? { ...item, actual, status: "Contratado" } : item
+    ));
+  }
+  return [
+    ...budgetItems,
+    {
+      id: uid(),
+      category: String(resolvedCategory || vendor.category || "Nova categoria").trim(),
+      share: 0,
+      suggestedBase: 0,
+      actualBase: 0,
+      planned: 0,
+      actual,
+      status: "Contratado",
+      notes: ""
+    }
+  ];
 }
 
 function defaultChecklistTasks() {
@@ -4820,14 +4840,11 @@ function normalizeState(nextState) {
         : Number(item.planned) || 0,
     actual: Number(item.actual) || 0
   }));
-  const contractedBudgetCategories = new Set(nextState.data.vendors
+  nextState.data.vendors
     .filter((vendor) => vendor.status === "Contratado")
-    .map((vendor) => normalizeHeader(resolveBudgetCategory(vendor.category, nextState.data.budget))));
-  nextState.data.budget = nextState.data.budget.map((item) => (
-    item.status === "Planejado" && contractedBudgetCategories.has(normalizeHeader(item.category))
-      ? { ...item, status: "Contratado" }
-      : item
-  ));
+    .forEach((vendor) => {
+      nextState.data.budget = syncContractedVendorToBudget(nextState.data.budget, vendor);
+    });
   return nextState;
 }
 
