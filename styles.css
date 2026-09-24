@@ -1108,11 +1108,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   color: var(--ink);
 }
 
-.budget-card input {
-  width: min(220px, 100%);
-  background: #f7efeb;
-}
-
 .budget-card-values {
   display: grid;
   grid-template-columns: minmax(150px, 1.25fr) repeat(2, minmax(112px, 0.8fr));
@@ -1139,6 +1134,52 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .budget-card-values strong {
   font-size: 1rem;
+}
+
+.budget-quotes,
+.budget-quote-empty {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7efeb;
+}
+
+.budget-quotes > span,
+.budget-quote-empty > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.budget-quote-list {
+  display: grid;
+  gap: 7px;
+}
+
+.budget-quote-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+}
+
+.budget-quote-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.budget-quote-row span {
+  color: var(--ink);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.budget-quote-empty small {
+  color: var(--muted);
 }
 
 .payment-summary {

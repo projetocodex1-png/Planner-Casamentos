@@ -760,6 +760,13 @@ function wireShell() {
       render();
       return;
     }
+    if (key === "budget") {
+      saveBudgetItem(form);
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
     if (key === "vendorCategory") {
       if (saveVendorCategory(form) === false) return;
       els.itemDialog.close();
@@ -1177,7 +1184,6 @@ function renderModule(key) {
   els.moduleView.querySelectorAll("[data-add-identity-font]").forEach((button) => button.addEventListener("click", () => openIdentityFontDialog()));
   els.moduleView.querySelectorAll("[data-add-identity-group]").forEach((button) => button.addEventListener("click", () => openIdentityGroupDialog()));
   els.moduleView.querySelectorAll("[data-add-identity-color]").forEach((button) => button.addEventListener("click", () => openIdentityColorDialog(button.dataset.addIdentityColor)));
-  if (key === "budget") wireBudgetInputs();
   if (key === "tables") wireTablePlanner();
 
 }
@@ -1419,22 +1425,23 @@ function renderBudgetCards(items) {
         const categoryPaid = paidPaymentsForBudgetCategory(item.category);
         const categoryRemaining = Math.max(0, Number(item.actual || 0) - categoryPaid);
         const contractedVendors = contractedVendorsForBudgetCategory(item.category);
+        const quotedVendors = quotedVendorsForBudgetCategory(item.category);
+        const isContracted = contractedVendors.length > 0;
         return `
         <article class="budget-card">
           <header>
             <h3>${escapeHtml(item.category)}</h3>
-            <span class="chip ${chipColor(item.status)}">${escapeHtml(item.status)}</span>
+            <span class="chip ${chipColor(isContracted ? "Contratado" : "Planejado")}">${isContracted ? "Contratado" : "Planejado"}</span>
           </header>
           <p>${Number(item.share) || 0}% base - ${money(item.planned)} sugerido</p>
           ${contractedVendors.length ? `<p class="budget-linked-vendor"><strong>Fornecedor:</strong> ${contractedVendors.map((vendor) => escapeHtml(vendor.name)).join(", ")}</p>` : ""}
-          <div class="budget-card-values">
-            <label>
-              Total real
-              <input data-budget-actual="${item.id}" type="text" inputmode="numeric" value="${money(item.actual)}" placeholder="R$ 0,00">
-            </label>
-            <div><span>Valor pago</span><strong>${money(categoryPaid)}</strong></div>
-            <div><span>Falta pagar</span><strong>${money(categoryRemaining)}</strong></div>
-          </div>
+          ${isContracted ? `
+            <div class="budget-card-values">
+              <div><span>Total real</span><strong>${money(item.actual)}</strong></div>
+              <div><span>Valor pago</span><strong>${money(categoryPaid)}</strong></div>
+              <div><span>Falta pagar</span><strong>${money(categoryRemaining)}</strong></div>
+            </div>
+          ` : renderBudgetQuotes(quotedVendors)}
           ${actionButtons(item.id)}
         </article>
       `;
@@ -1466,20 +1473,40 @@ function contractedVendorsForBudgetCategory(category) {
   ));
 }
 
-function wireBudgetInputs() {
-  els.moduleView.querySelectorAll("[data-budget-actual]").forEach((input) => {
-    input.addEventListener("focus", () => placeCurrencyCursor(input));
-    input.addEventListener("input", () => {
-      input.value = formatCurrencyInput(input.value);
-      placeCurrencyCursor(input);
-    });
-    input.addEventListener("change", () => {
-      const value = parseCurrencyInput(input.value);
-      state.data.budget = state.data.budget.map((item) => item.id === input.dataset.budgetActual ? { ...item, actual: value } : item);
-      saveState();
-      renderModule("budget");
-    });
-  });
+function quotedVendorsForBudgetCategory(category) {
+  const target = normalizeHeader(category);
+  return state.data.vendors
+    .filter((vendor) => (
+      ["Cotando", "Favorito"].includes(vendor.status)
+      && Number(vendor.value) > 0
+      && normalizeHeader(resolveBudgetCategory(vendor.category)) === target
+    ))
+    .sort((a, b) => Number(a.value) - Number(b.value));
+}
+
+function renderBudgetQuotes(vendors) {
+  if (!vendors.length) {
+    return `
+      <div class="budget-quote-empty">
+        <span>Valor cotado</span>
+        <strong>${money(0)}</strong>
+        <small>Nenhum fornecedor com valor informado.</small>
+      </div>
+    `;
+  }
+  return `
+    <div class="budget-quotes">
+      <span>Valores cotados</span>
+      <div class="budget-quote-list">
+        ${vendors.map((vendor) => `
+          <div class="budget-quote-row">
+            <strong>${escapeHtml(vendor.name)}</strong>
+            <span>${money(vendor.value)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderPayments(items) {
@@ -3129,6 +3156,11 @@ function openItemDialog(key, id = null, defaults = {}) {
     els.itemDialog.showModal();
     return;
   }
+  if (key === "budget") {
+    renderBudgetForm(item || {});
+    els.itemDialog.showModal();
+    return;
+  }
   if (key === "payments") {
     renderPaymentForm(item || {});
     els.itemDialog.showModal();
@@ -3171,6 +3203,38 @@ function openItemDialog(key, id = null, defaults = {}) {
     return `<label>${label}<input name="${name}" type="${type}" value="${escapeHtml(inputValue)}" ${required ? "required" : ""}></label>`;
   }).join("");
   els.itemDialog.showModal();
+}
+
+function renderBudgetForm(item) {
+  document.querySelector("#itemDialogEyebrow").textContent = "Planejamento";
+  document.querySelector("#itemDialogTitle").textContent = item.id ? "Editar item do orçamento" : "Adicionar item ao orçamento";
+  els.itemFields.innerHTML = `
+    <label class="full-field">Categoria<input name="category" required value="${escapeHtml(item.category || "")}"></label>
+    <label>Percentual base<input name="share" type="number" min="0" step="0.01" value="${Number(item.share) || 0}"></label>
+    <label>Valor sugerido<input name="planned" type="number" min="0" step="0.01" value="${Number(item.planned) || 0}"></label>
+    <label class="full-field">Observacoes<textarea name="notes">${escapeHtml(item.notes || "")}</textarea></label>
+    <p class="form-note full-field">O valor real e o status contratado sao atualizados automaticamente pela aba Fornecedores.</p>
+  `;
+}
+
+function saveBudgetItem(form) {
+  const previous = editing.id ? state.data.budget.find((entry) => entry.id === editing.id) : null;
+  const item = {
+    ...(previous || {}),
+    id: editing.id || uid(),
+    category: String(form.get("category") || "").trim(),
+    share: Math.max(0, Number(form.get("share")) || 0),
+    suggestedBase: previous?.suggestedBase || 0,
+    actualBase: 0,
+    planned: Math.max(0, Number(form.get("planned")) || 0),
+    actual: 0,
+    status: "Planejado",
+    notes: form.get("notes") || ""
+  };
+  if (editing.id) state.data.budget = state.data.budget.map((entry) => entry.id === editing.id ? item : entry);
+  else state.data.budget.push(item);
+  state.data.budget = syncBudgetFromVendors(state.data.budget, state.data.vendors);
+  saveState();
 }
 
 function renderMemoryForm(item) {
@@ -3365,8 +3429,8 @@ function saveVendorItem(form) {
         ? { ...vendor, status: "Descartado" }
         : vendor
     ));
-    state.data.budget = syncContractedVendorToBudget(state.data.budget, item);
   }
+  state.data.budget = syncBudgetFromVendors(state.data.budget, state.data.vendors);
   saveState();
 }
 
@@ -3966,6 +4030,7 @@ function toggleMemoryPurchased(id, purchased) {
 function deleteItem(key, id) {
   if (!confirm("Excluir este item?")) return;
   state.data[key] = state.data[key].filter((item) => item.id !== id);
+  if (key === "vendors") state.data.budget = syncBudgetFromVendors(state.data.budget, state.data.vendors);
   if (key === "guests") {
     saveGuestState();
     render();
@@ -4303,14 +4368,14 @@ function initializeBudgetDefaults() {
 }
 
 function defaultBudgetItems(totalBudget = 0) {
-  return DEFAULT_BUDGET_CATEGORIES.map(([category, share, suggestedBase, actualBase]) => ({
+  return DEFAULT_BUDGET_CATEGORIES.map(([category, share, suggestedBase]) => ({
     id: uid(),
     category,
     share,
     suggestedBase,
-    actualBase,
+    actualBase: 0,
     planned: scaledBudgetValue(suggestedBase, totalBudget),
-    actual: scaledBudgetValue(actualBase, totalBudget),
+    actual: 0,
     status: "Planejado",
     notes: ""
   }));
@@ -4328,14 +4393,13 @@ function mergeBudgetDefaultsIntoItem(item, totalBudget = 0) {
   const defaults = defaultBudgetForCategory(item.category);
   if (!defaults) return item;
   const planned = scaledBudgetValue(defaults.suggestedBase, totalBudget);
-  const actual = Number(item.actual) || 0;
   return {
     ...item,
     share: Number(item.share) || defaults.share,
     suggestedBase: Number(item.suggestedBase) || defaults.suggestedBase,
-    actualBase: Number(item.actualBase) || defaults.actualBase,
+    actualBase: 0,
     planned,
-    actual: actual || scaledBudgetValue(defaults.actualBase, totalBudget)
+    actual: 0
   };
 }
 
@@ -4445,6 +4509,21 @@ function syncContractedVendorToBudget(budgetItems, vendor) {
       notes: ""
     }
   ];
+}
+
+function syncBudgetFromVendors(budgetItems, vendors) {
+  let syncedItems = (budgetItems || []).map((item) => ({
+    ...item,
+    actualBase: 0,
+    actual: 0,
+    status: "Planejado"
+  }));
+  (vendors || [])
+    .filter((vendor) => vendor.status === "Contratado")
+    .forEach((vendor) => {
+      syncedItems = syncContractedVendorToBudget(syncedItems, vendor);
+    });
+  return syncedItems;
 }
 
 function defaultChecklistTasks() {
@@ -4832,19 +4911,16 @@ function normalizeState(nextState) {
     ...item,
     share: Number(item.share) || 0,
     suggestedBase: Number(item.suggestedBase) || 0,
-    actualBase: Number(item.actualBase) || 0,
+    actualBase: 0,
     planned: Number(item.suggestedBase)
       ? scaledBudgetValue(item.suggestedBase, nextState.wedding?.budget)
       : Number(item.share)
         ? Math.round(((Number(nextState.wedding?.budget) || 0) * Number(item.share)) / 100)
         : Number(item.planned) || 0,
-    actual: Number(item.actual) || 0
+    actual: 0,
+    status: "Planejado"
   }));
-  nextState.data.vendors
-    .filter((vendor) => vendor.status === "Contratado")
-    .forEach((vendor) => {
-      nextState.data.budget = syncContractedVendorToBudget(nextState.data.budget, vendor);
-    });
+  nextState.data.budget = syncBudgetFromVendors(nextState.data.budget, nextState.data.vendors);
   return nextState;
 }
 
