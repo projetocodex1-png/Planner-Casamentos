@@ -1106,7 +1106,7 @@ function renderModule(key) {
       renderModule("vendors");
     });
   });
-  els.moduleView.querySelector("[data-add-vendor-category]")?.addEventListener("click", openVendorCategoryDialog);
+  els.moduleView.querySelector("[data-add-vendor-category]")?.addEventListener("click", () => openVendorCategoryDialog());
   els.moduleView.querySelectorAll("[data-edit-vendor-category]").forEach((button) => {
     button.addEventListener("click", () => openVendorCategoryDialog(button.dataset.editVendorCategory));
   });
