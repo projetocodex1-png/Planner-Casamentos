@@ -660,6 +660,38 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 
 .module-tools input, .module-tools select { width: min(100%, 240px); }
 
+.module-tool-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.module-tool-action svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.vendor-guidance {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: -2px 0 14px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--teal);
+  background: rgba(40, 124, 116, 0.08);
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.vendor-guidance strong {
+  flex: 0 0 auto;
+  color: var(--teal);
+}
+
 .guest-option-manager {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1065,6 +1097,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
   margin: 0;
   color: #339566;
   font-weight: 750;
+}
+
+.budget-card .budget-linked-vendor {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.budget-linked-vendor strong {
+  color: var(--ink);
 }
 
 .budget-card input {
@@ -2692,6 +2733,7 @@ td:last-child { text-align: right; white-space: nowrap; }
   .topbar-actions button { flex: 1 1 150px; }
   .metric-grid, .card-grid, .form-grid, .budget-summary, .budget-card-grid, .font-card-grid, .color-card-grid, .status-tabs { grid-template-columns: 1fr; }
   .guest-option-manager { grid-template-columns: 1fr; }
+  .vendor-guidance { align-items: flex-start; flex-direction: column; }
   .memory-overview { grid-template-columns: 1fr 1fr; }
   .memory-add-category { grid-column: 1 / -1; }
   .memory-group-header { align-items: flex-start; }

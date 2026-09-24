@@ -305,6 +305,7 @@ const moduleConfig = {
       ["title", "Compromisso", "text", true],
       ["date", "Data", "date", true],
       ["time", "Hora", "time", false],
+      ["category", "Categoria", "text", false],
       ["vendor", "Fornecedor", "text", false],
       ["status", "Status", "select", true, ["Agendada", "Realizada", "Cancelada", "Reagendada"]],
       ["reminder", "Lembrete", "select", true, ["Nenhum", "1 dia antes", "3 dias antes", "1 semana antes"]],
@@ -759,6 +760,13 @@ function wireShell() {
       render();
       return;
     }
+    if (key === "vendorCategory") {
+      if (saveVendorCategory(form) === false) return;
+      els.itemDialog.close();
+      editing = null;
+      render();
+      return;
+    }
     if (key === "payments") {
       savePaymentItem(form);
       els.itemDialog.close();
@@ -1063,8 +1071,10 @@ function renderModule(key) {
       ${filters.map((field) => renderFilter(key, field)).join("")}
       ${key === "guests" ? renderGuestViewControls() : ""}
       ${key === "vendors" ? renderVendorViewControls() : ""}
+      ${key === "vendors" ? `<button class="secondary-action module-tool-action" type="button" data-add-vendor-category>${iconSvg("plus")}<span>Adicionar categoria</span></button>` : ""}
     </div>
     ${key === "guests" ? renderGuestOptionManager() : ""}
+    ${key === "vendors" ? renderVendorGuidance() : ""}
     ${renderModuleContent(key, items)}
   `;
 
@@ -1087,6 +1097,7 @@ function renderModule(key) {
       renderModule("vendors");
     });
   });
+  els.moduleView.querySelector("[data-add-vendor-category]")?.addEventListener("click", openVendorCategoryDialog);
   els.moduleView.querySelectorAll("[data-guest-view]").forEach((select) => {
     select.addEventListener("change", (event) => {
       state.guestView = { ...(state.guestView || {}), [event.target.dataset.guestView]: event.target.value };
@@ -1214,6 +1225,15 @@ function renderVendorViewControls() {
       <option value="value-asc" ${view.sortBy === "value-asc" ? "selected" : ""}>Ordem: menor valor</option>
       <option value="value-desc" ${view.sortBy === "value-desc" ? "selected" : ""}>Ordem: maior valor</option>
     </select>
+  `;
+}
+
+function renderVendorGuidance() {
+  return `
+    <aside class="vendor-guidance">
+      <strong>Mais de um fornecedor para o mesmo serviço?</strong>
+      <span>Crie categorias separadas, como Bar 1 e Bar 2. Ao contratar um fornecedor, os demais da mesma categoria serão marcados automaticamente como descartados.</span>
+    </aside>
   `;
 }
 
@@ -1379,6 +1399,7 @@ function renderBudgetCards(items) {
   const available = planned - actual;
   const remaining = Math.max(0, actual - paid);
   const used = planned ? Math.min(100, Math.round((actual / planned) * 100)) : 0;
+  const sortedItems = sortBudgetItems(items);
   if (!items.length) return emptyPanel();
   return `
     <div class="budget-summary">
@@ -1394,9 +1415,10 @@ function renderBudgetCards(items) {
       </article>
     </div>
     <div class="budget-card-grid">
-      ${items.map((item) => {
+      ${sortedItems.map((item) => {
         const categoryPaid = paidPaymentsForBudgetCategory(item.category);
         const categoryRemaining = Math.max(0, Number(item.actual || 0) - categoryPaid);
+        const contractedVendors = contractedVendorsForBudgetCategory(item.category);
         return `
         <article class="budget-card">
           <header>
@@ -1404,6 +1426,7 @@ function renderBudgetCards(items) {
             <span class="chip ${chipColor(item.status)}">${escapeHtml(item.status)}</span>
           </header>
           <p>${Number(item.share) || 0}% base - ${money(item.planned)} sugerido</p>
+          ${contractedVendors.length ? `<p class="budget-linked-vendor"><strong>Fornecedor:</strong> ${contractedVendors.map((vendor) => escapeHtml(vendor.name)).join(", ")}</p>` : ""}
           <div class="budget-card-values">
             <label>
               Total real
@@ -1418,6 +1441,29 @@ function renderBudgetCards(items) {
       }).join("")}
     </div>
   `;
+}
+
+function sortBudgetItems(items) {
+  const statusOrder = { Contratado: 0, Planejado: 1 };
+  return [...items].sort((a, b) => {
+    const statusDifference = (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2);
+    if (statusDifference) return statusDifference;
+    const remainingA = Math.max(0, Number(a.actual || 0) - paidPaymentsForBudgetCategory(a.category));
+    const remainingB = Math.max(0, Number(b.actual || 0) - paidPaymentsForBudgetCategory(b.category));
+    if (remainingA !== remainingB) return remainingB - remainingA;
+    if (remainingA === 0 && remainingB === 0 && Number(a.actual || 0) !== Number(b.actual || 0)) {
+      return Number(b.actual || 0) - Number(a.actual || 0);
+    }
+    return String(a.category || "").localeCompare(String(b.category || ""), "pt-BR");
+  });
+}
+
+function contractedVendorsForBudgetCategory(category) {
+  const target = normalizeHeader(category);
+  return state.data.vendors.filter((vendor) => (
+    vendor.status === "Contratado"
+    && normalizeHeader(resolveBudgetCategory(vendor.category)) === target
+  ));
 }
 
 function wireBudgetInputs() {
@@ -3221,6 +3267,30 @@ function openIdentityFontDialog(id = null) {
   els.itemDialog.showModal();
 }
 
+function openVendorCategoryDialog() {
+  editing = { key: "vendorCategory", id: null };
+  document.querySelector("#itemDialogEyebrow").textContent = "Fornecedores";
+  document.querySelector("#itemDialogTitle").textContent = "Adicionar categoria";
+  els.itemFields.innerHTML = `
+    <label class="full-field">Nome da categoria
+      <input name="categoryName" required placeholder="Ex: Bar 2">
+    </label>
+  `;
+  els.itemDialog.showModal();
+}
+
+function saveVendorCategory(form) {
+  const category = String(form.get("categoryName") || "").trim();
+  if (!category) return false;
+  if (state.vendorCategories.some((entry) => normalizeHeader(entry) === normalizeHeader(category))) {
+    alert("Esta categoria já existe.");
+    return false;
+  }
+  state.vendorCategories.push(category);
+  saveState();
+  return true;
+}
+
 function renderVendorForm(item) {
   const selectedCategory = state.vendorCategories.includes(item.category) ? item.category : "Nova categoria";
   const customCategory = selectedCategory === "Nova categoria" ? item.category || "" : "";
@@ -3289,6 +3359,19 @@ function saveVendorItem(form) {
       return isLinked ? { ...appointment, vendorId: item.id, vendor: item.name } : appointment;
     });
   } else state.data.vendors.push(item);
+  if (item.status === "Contratado") {
+    state.data.vendors = state.data.vendors.map((vendor) => (
+      vendor.id !== item.id && normalizeHeader(vendor.category) === normalizeHeader(item.category)
+        ? { ...vendor, status: "Descartado" }
+        : vendor
+    ));
+    const budgetCategory = resolveBudgetCategory(item.category);
+    state.data.budget = state.data.budget.map((budgetItem) => (
+      normalizeHeader(budgetItem.category) === normalizeHeader(budgetCategory)
+        ? { ...budgetItem, status: "Contratado" }
+        : budgetItem
+    ));
+  }
   saveState();
 }
 
@@ -3301,17 +3384,17 @@ function renderPaymentForm(item) {
   document.querySelector("#itemDialogTitle").textContent = item.id ? "Editar pagamento" : "Adicionar pagamento";
   els.itemFields.innerHTML = `
     <label class="full-field">Descricao<input name="description" required value="${escapeHtml(item.description || "")}" placeholder="Ex: Segunda parcela"></label>
-    <label>Fornecedor
-      <select name="vendorId">
-        ${renderLinkedVendorOptions(item, selectedVendorId)}
-      </select>
-    </label>
     <label>Categoria
       <select name="category" required>
         <option value="">Selecione</option>
         ${categories.map((category) => `<option value="${escapeHtml(category)}" ${selectedCategory === category ? "selected" : ""}>${escapeHtml(category)}</option>`).join("")}
       </select>
-      <small>Preenchida automaticamente ao escolher o fornecedor.</small>
+      <small>Selecione para filtrar os fornecedores ou deixe em branco para ver todos.</small>
+    </label>
+    <label>Fornecedor
+      <select name="vendorId">
+        ${renderLinkedVendorOptions(item, selectedVendorId, selectedCategory)}
+      </select>
     </label>
     <label>Valor<input name="amount" type="number" min="0" step="0.01" required value="${Number(item.amount) || 0}"></label>
     <label>Vencimento<input name="dueDate" type="date" required value="${escapeHtml(item.dueDate || "")}"></label>
@@ -3327,15 +3410,25 @@ function renderPaymentForm(item) {
 
 function renderAppointmentForm(item) {
   const selectedVendorId = linkedVendorId(item);
+  const selectedVendor = state.data.vendors.find((vendor) => vendor.id === selectedVendorId);
+  const selectedCategory = item.category || selectedVendor?.category || "";
+  const categories = linkedFinancialCategories(selectedCategory);
   document.querySelector("#itemDialogEyebrow").textContent = "Agenda";
   document.querySelector("#itemDialogTitle").textContent = item.id ? "Editar compromisso" : "Adicionar compromisso";
   els.itemFields.innerHTML = `
     <label class="full-field">Compromisso<input name="title" required value="${escapeHtml(item.title || "")}" placeholder="Ex: Reuniao de alinhamento"></label>
     <label>Data<input name="date" type="date" required value="${escapeHtml(item.date || "")}"></label>
     <label>Hora<input name="time" type="time" value="${escapeHtml(item.time || "")}"></label>
+    <label>Categoria
+      <select name="category">
+        <option value="">Selecione</option>
+        ${categories.map((category) => `<option value="${escapeHtml(category)}" ${selectedCategory === category ? "selected" : ""}>${escapeHtml(category)}</option>`).join("")}
+      </select>
+      <small>Selecione para filtrar os fornecedores ou deixe em branco para ver todos.</small>
+    </label>
     <label>Fornecedor
       <select name="vendorId">
-        ${renderLinkedVendorOptions(item, selectedVendorId)}
+        ${renderLinkedVendorOptions(item, selectedVendorId, selectedCategory)}
       </select>
     </label>
     <label>Status
@@ -3350,23 +3443,41 @@ function renderAppointmentForm(item) {
     </label>
     <label class="full-field">Observacoes<textarea name="notes">${escapeHtml(item.notes || "")}</textarea></label>
   `;
+  wireLinkedVendorCategory();
 }
 
-function renderLinkedVendorOptions(item, selectedVendorId) {
-  const hasLegacyVendor = item.vendor && !state.data.vendors.some((vendor) => vendor.id === selectedVendorId);
+function renderLinkedVendorOptions(item, selectedVendorId, category = "") {
+  const vendors = activeVendors(category);
+  const isKnownVendor = state.data.vendors.some((vendor) => vendor.id === selectedVendorId || normalizeHeader(vendor.name) === normalizeHeader(item.vendor));
+  const hasLegacyVendor = item.vendor && !isKnownVendor;
   return `
     <option value="">Sem fornecedor</option>
-    ${hasLegacyVendor ? `<option value="__legacy__" selected>${escapeHtml(item.vendor)} (nao cadastrado)</option>` : ""}
-    ${state.data.vendors.map((vendor) => `<option value="${vendor.id}" ${selectedVendorId === vendor.id ? "selected" : ""}>${escapeHtml(vendor.name)}</option>`).join("")}
+    ${hasLegacyVendor ? `<option value="__legacy__" selected>${escapeHtml(item.vendor)} (indisponivel)</option>` : ""}
+    ${vendors.map((vendor) => `<option value="${vendor.id}" ${selectedVendorId === vendor.id ? "selected" : ""}>${escapeHtml(vendor.name)}</option>`).join("")}
   `;
 }
 
 function wireLinkedVendorCategory() {
   const vendorSelect = els.itemForm.elements.vendorId;
   const categorySelect = els.itemForm.elements.category;
+  const refreshVendors = (preferredVendorId = "") => {
+    vendorSelect.innerHTML = renderLinkedVendorOptions({}, preferredVendorId, categorySelect.value);
+  };
+  categorySelect.addEventListener("change", () => refreshVendors());
   vendorSelect.addEventListener("change", () => {
     const vendor = state.data.vendors.find((entry) => entry.id === vendorSelect.value);
-    if (vendor?.category) categorySelect.value = vendor.category;
+    if (vendor?.category) {
+      categorySelect.value = vendor.category;
+      refreshVendors(vendor.id);
+    }
+  });
+}
+
+function activeVendors(category = "") {
+  return state.data.vendors.filter((vendor) => {
+    if (!["Cotando", "Favorito", "Contratado"].includes(vendor.status)) return false;
+    if (!category) return true;
+    return normalizeHeader(vendor.category) === normalizeHeader(category);
   });
 }
 
@@ -3401,6 +3512,7 @@ function saveAppointmentItem(form) {
     title: String(form.get("title") || "").trim(),
     date: String(form.get("date") || ""),
     time: String(form.get("time") || ""),
+    category: String(form.get("category") || vendor?.category || "").trim(),
     vendorId: vendor?.id || "",
     vendor: vendor?.name || (keepLegacy ? previous?.vendor || "" : ""),
     status: form.get("status") || "Agendada",
@@ -4278,13 +4390,15 @@ function paidPaymentsForBudgetCategory(category) {
     .reduce((total, payment) => total + (Number(payment.amount) || 0), 0);
 }
 
-function resolveBudgetCategory(paymentCategory) {
+function resolveBudgetCategory(paymentCategory, budgetItems = state.data.budget) {
   const normalized = normalizeHeader(paymentCategory);
-  const exact = state.data.budget.find((item) => normalizeHeader(item.category) === normalized);
+  const exact = budgetItems.find((item) => normalizeHeader(item.category) === normalized);
   if (exact) return exact.category;
   const aliases = {
     buffet: "Gastronomia / Buffet",
     gastronomia: "Gastronomia / Buffet",
+    cerimonial: "Cerimonial / Assessoria",
+    assessoria: "Cerimonial / Assessoria",
     vestido: "Vestido de noiva",
     traje: "Traje do noivo",
     decoracao: "Decoracao",
@@ -4637,6 +4751,10 @@ function normalizeState(nextState) {
     const table = nextState.data.tables.find((entry) => guest.table && entry.name === guest.table);
     return table ? { ...guest, tableId: table.id, looseX: "", looseY: "" } : guest;
   });
+  nextState.data.vendors = (nextState.data.vendors || []).map((vendor) => ({
+    ...vendor,
+    status: ["Cotando", "Favorito", "Contratado", "Descartado"].includes(vendor.status) ? vendor.status : "Cotando"
+  }));
   const defaultVendorCategories = structuredClone(seedState.vendorCategories || []);
   const dataVendorCategories = (nextState.data.vendors || []).map((item) => item.category).filter(Boolean);
   nextState.vendorCategories = [...new Set([...(nextState.vendorCategories || defaultVendorCategories), ...dataVendorCategories])];
@@ -4659,6 +4777,7 @@ function normalizeState(nextState) {
       ...appointment,
       vendorId: vendor?.id || "",
       vendor: vendor?.name || appointment.vendor || "",
+      category: appointment.category || vendor?.category || "",
       status: ["Agendada", "Realizada", "Cancelada", "Reagendada"].includes(appointment.status) ? appointment.status : "Agendada",
       reminder: appointment.reminder || "Nenhum"
     };
@@ -4701,6 +4820,14 @@ function normalizeState(nextState) {
         : Number(item.planned) || 0,
     actual: Number(item.actual) || 0
   }));
+  const contractedBudgetCategories = new Set(nextState.data.vendors
+    .filter((vendor) => vendor.status === "Contratado")
+    .map((vendor) => normalizeHeader(resolveBudgetCategory(vendor.category, nextState.data.budget))));
+  nextState.data.budget = nextState.data.budget.map((item) => (
+    item.status === "Planejado" && contractedBudgetCategories.has(normalizeHeader(item.category))
+      ? { ...item, status: "Contratado" }
+      : item
+  ));
   return nextState;
 }
 
